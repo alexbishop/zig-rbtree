@@ -39,7 +39,7 @@ fn main() !void {
         }
     }
 
-    // remove some entreies from the tree
+    // remove some entries from the tree
     _ = tree.remove(7);
     _ = tree.remove(3);
     _ = tree.remove(5);
