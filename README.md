@@ -8,9 +8,9 @@ An extensible implementation of augmented red-black trees in the Zig programming
 const std = @import("std");
 const rbtreelib = @import("rbtree");
 
-pub const RBTree = rbtreelib.RBTree;
+pub const DefaultRBTree = rbtreelib.DefaultRBTree;
 
-fn main() !void {
+pub fn main() !void {
     var gpa = std.heap.GeneralPurposeAllocator(.{}){};
     const allocator = gpa.allocator();
 
@@ -53,6 +53,7 @@ fn main() !void {
         }
     }
 }
+
 ```
 
 ## 2. Layers of abstraction
