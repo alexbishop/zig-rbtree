@@ -1,9 +1,23 @@
+//! This is the documentation for zig rbtree version 0.0.2.
+//!
+//! For the documentation of any other version, please checkout the corresponding
+//! version of the code and run the following
+//!
+//! ```
+//! rm -rf ~/.cache/zig
+//! zig build docs
+//! ```
+//!
+//! Notice that we remove the global zig cache since it interfears with the generation
+//! of the documentation.
 const std = @import("std");
 
 const managed = @import("./rb_managed.zig");
 const unmanaged = @import("./rb_unmanaged.zig");
 const implementation = @import("./rb_implementation.zig");
 const node = @import("./rb_node.zig");
+
+pub const meta = @import("./meta.zig");
 
 pub const Options = unmanaged.Options;
 pub const Node = node.Node;
@@ -53,11 +67,7 @@ pub fn addVoidContextToOrder(
 pub fn defaultOrder(comptime K: type) fn (_: void, lhs: K, rhs: K) std.math.Order {
     const tmp = struct {
         pub fn do(_: void, lhs: K, rhs: K) std.math.Order {
-            switch (@typeInfo(K)) {
-                .Int, .Float, .Pointer, .ComptimeInt, .ComptimeFloat => return std.math.order(lhs, rhs),
-                .Array, .Vector => return std.mem.order(K, lhs, rhs),
-                else => @compileError("Unsupported type"),
-            }
+            return meta.order(lhs, rhs);
         }
     };
     return tmp.do;
