@@ -8,13 +8,12 @@ const Order = std.math.Order;
 /// This function is intended as a generalisation of `std.meta.eql`.
 ///
 /// This function recursively compares the two types, but does not follow pointers.
-/// Note that this function does not compare variables of type `Fn`, `Opaque`, `Frame` or `AnyFrame`.
 pub fn order(a: anytype, b: @TypeOf(a)) Order {
     const T = @TypeOf(a);
 
     switch (@typeInfo(T)) {
         .Type => return order(@typeName(a), @typeName(b)),
-        .Void, .NoReturn, .Undefined, .Null, .ErrorSet => return .eq,
+        .Void, .NoReturn, .Undefined, .Null => return .eq,
         .Bool => {
             if (a == b) {
                 return .eq;
@@ -89,7 +88,12 @@ pub fn order(a: anytype, b: @TypeOf(a)) Order {
                 }
             }
         },
-        .Enum, .EnumLiteral => return order(@intFromEnum(a), @intFromEnum(b)),
+        .ErrorSet => {
+            return order(@errorName(a), @errorName(b));
+        },
+        .Enum, .EnumLiteral => {
+            return order(@tagName(a), @tagName(b));
+        },
         .Union => |info| {
             if (info.tag_type) |UnionTag| {
                 const tag_a: UnionTag = a;
