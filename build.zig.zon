@@ -1,5 +1,13 @@
 .{
     .name = "rbtree",
-    .version = "0.0.1",
-    .paths = .{""},
+    .version = "0.0.2",
+    .paths = .{
+        "example",
+        "src",
+        "test",
+        "build.zig",
+        "build.zig.zon",
+        "LICENSE",
+        "README.md",
+    },
 }

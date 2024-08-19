@@ -2,6 +2,12 @@
 
 An extensible implementation of augmented red-black trees in the Zig programming language.
 
+**Note:** This package was written for zig version 0.13.0.
+
+For full documentation, see https://alexbishop.github.io/zig-rbtree
+
+For intructions on how to use this package in your own code, see the [Releases page](https://github.com/alexbishop/zig-rbtree/releases).
+
 ## 1. Examples
 
 ```zig

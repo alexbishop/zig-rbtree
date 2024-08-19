@@ -38,4 +38,21 @@ pub fn build(b: *std.Build) void {
         const run_example_tests = b.addRunArtifact(example_tests);
         test_step.dependOn(&run_example_tests.step);
     }
+
+    // generate docs
+    {
+        const rbtree_docs_lib = b.addStaticLibrary(.{
+            .name = "rbtreelib",
+            .root_source_file = b.path("src/root.zig"),
+            .target = target,
+            .optimize = optimize,
+        });
+        const docs_step = b.step("docs", "Emit docs");
+        const docs_install = b.addInstallDirectory(.{
+            .install_dir = .prefix,
+            .install_subdir = "docs",
+            .source_dir = rbtree_docs_lib.getEmittedDocs(),
+        });
+        docs_step.dependOn(&docs_install.step);
+    }
 }
