@@ -54,16 +54,10 @@ pub fn isNode(comptime N: type) bool {
 
 /// A node which can be inserted into a red-black tree.
 ///
-/// Notice here that:
-///
-///   `K`
-///     is the type of the keys used to short the nodes
-///
-///   `V`
-///     is the type of the values stored in each node
-///
-///   `options`
-///     additional options used to construct the red-black tree
+/// Arguments:
+///  * `K`: the type used for keys in the red-black tree
+///  * `V`: the type used for values in the red-black tree
+///  * `options`: additional options which change how the red-black tree operates
 pub fn Node(
     comptime K: type,
     comptime V: type,

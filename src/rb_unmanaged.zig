@@ -31,28 +31,18 @@ pub fn isRBTreeUnmanaged(comptime T: type) bool {
     }
 }
 
-/// A red-black tree which does not manage its own allocator or context.
+/// A red-black tree which manages its root and size.
+///
+/// Note that the allocator and context are not managed, that is, they must be passed
+/// to the relevant method calls every time.
 ///
 /// Arguments:
-///
-///     `K`
-///         the type used for keys in the red-black tree
-///
-///     `V`
-///         the type used for values in the red-black tree
-///
-///     `Context`
-///         the type of the context which can be passed to the comparison
-///         function of the red-black tree
-///
-///     `order`
-///         the comparison function to use for the red-black tree
-///
-///     `options`
-///         additional options which change how the red-black tree operates
-///
-///     `augmented_callbacks`
-///         callbacks to use for the augmented red-black tree
+///  * `K`: the type used for keys in the red-black tree
+///  * `V`: the type used for values in the red-black tree
+///  * `Context`: the type of the context which can be passed to the comparison function of the red-black tree
+///  * `order`: the comparison function to use for the red-black tree
+///  * `options`: additional options which change how the red-black tree operates
+///  * `augmented_callbacks`: callbacks to use for the augmented red-black tree
 pub fn RBTreeUnmanaged(
     comptime K: type,
     comptime V: type,
@@ -102,7 +92,7 @@ pub fn RBTreeUnmanaged(
 
         /// A pointer to the root of the red-black tree
         root: ?*Node,
-        /// To get the size of the tree, call the function `count`
+        /// To get the size of the tree, call the function `count` instead
         size: if (options.store_subtree_sizes) void else usize,
 
         /// Initialises an empty red-black tree.
@@ -126,12 +116,21 @@ pub fn RBTreeUnmanaged(
             clobber_key_and_value,
         };
 
+        /// Describes the result of an attempted insertion
         pub const InsertResult = struct {
+            /// If the value already existed in the tree, then this variable
+            /// will contain the key/value pair before it was clobbered
             found_existing: ?KV,
+            /// Indicates if the value was clobbered
             clobbered: bool,
+            /// The node corresponding to the inserted key
             node: *Node,
         };
 
+        /// Inserts a key/value pair into the tree.
+        ///
+        /// This is the most general function for insertion provided by this interface,
+        /// all other insersion functions are based off this function.
         pub fn insertContext(
             self: *Self,
             allocator: Allocator,
@@ -242,6 +241,9 @@ pub fn RBTreeUnmanaged(
             }
         }
 
+        /// Inserts a key/value pair into the tree.
+        ///
+        /// This function requires that `Context` is a zero size type like `void` for example.
         pub fn insert(
             self: *Self,
             allocator: Allocator,
@@ -264,6 +266,10 @@ pub fn RBTreeUnmanaged(
             );
         }
 
+        /// Removes a node from the tree.
+        ///
+        /// This function assumes that the node is in the red-black tree, i.e., it does not
+        /// verify if this is the case before removing.
         pub fn removeNodeContext(
             self: *Self,
             allocator: Allocator,
@@ -281,6 +287,7 @@ pub fn RBTreeUnmanaged(
             allocator.destroy(node);
         }
 
+        // Removes a node from the tree when `Context` is a zero size type, e.g., `void`.
         pub fn removeNode(
             self: *Self,
             allocator: Allocator,
@@ -294,10 +301,14 @@ pub fn RBTreeUnmanaged(
             return self.removeNodeContext(allocator, undefined, node);
         }
 
+        /// Returns true if the tree does not contain any nodes.
         pub fn empty(self: Self) bool {
             return self.root != null;
         }
 
+        /// Gets the size of the tree.
+        ///
+        /// Note this function should be preferred over reading the size directly.
         pub fn count(self: Self) usize {
             if (options.store_subtree_sizes) {
                 if (self.root) |r| {
@@ -314,6 +325,7 @@ pub fn RBTreeUnmanaged(
         // Search functions
         // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
+        /// Returns the node corresponding to the smallest key stored in the tree.
         pub fn findMin(self: Self) ?*Node {
             if (self.root) |r| {
                 return r.getLeftmostInSubtree();
@@ -322,6 +334,7 @@ pub fn RBTreeUnmanaged(
             }
         }
 
+        /// Returns the node corresponding to the largest key stored in the tree.
         pub fn findMax(self: Self) ?*Node {
             if (self.root) |r| {
                 return r.getRightmostInSubtree();
@@ -330,6 +343,7 @@ pub fn RBTreeUnmanaged(
             }
         }
 
+        /// Finds the node which corresponds to the largest value which compares less than or equal to the given key.
         pub fn findLowerBoundContext(
             self: Self,
             ctx: Context,
@@ -362,6 +376,7 @@ pub fn RBTreeUnmanaged(
             return null;
         }
 
+        /// A specialisation of `findLowerBoundContext` when `Context` is a zero size type.
         pub fn findLowerBound(self: Self, key: K) ?*Node {
             comptime {
                 if (@sizeOf(Context) != 0) {
@@ -371,6 +386,7 @@ pub fn RBTreeUnmanaged(
             return self.findLowerBound(undefined, key);
         }
 
+        /// Finds the node which corresponds to the smalles value which compares greater than or equal to the given key.
         pub fn findUpperBoundContext(
             self: Self,
             ctx: Context,
@@ -403,6 +419,7 @@ pub fn RBTreeUnmanaged(
             return null;
         }
 
+        /// A specialisation of `findUpperBoundContext` when `Context` is a zero size type.
         pub fn findUpperBound(self: Self, key: K) ?*Node {
             comptime {
                 if (@sizeOf(Context) != 0) {
@@ -412,6 +429,7 @@ pub fn RBTreeUnmanaged(
             return self.findUpperBound(undefined, key);
         }
 
+        /// Attempts to find a given key in the tree.
         pub fn findContext(
             self: Self,
             ctx: Context,
@@ -432,6 +450,7 @@ pub fn RBTreeUnmanaged(
             return null;
         }
 
+        /// A specialisation of `findContext` when `Context` is a zero size type.
         pub fn find(self: Self, key: K) ?*Node {
             comptime {
                 if (@sizeOf(Context) != 0) {

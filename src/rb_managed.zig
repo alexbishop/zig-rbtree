@@ -26,25 +26,12 @@ pub fn isRBTree(comptime T: type) bool {
 /// A red-black tree which manages its own allocator and context.
 ///
 /// Arguments:
-///
-///     `K`
-///         the type used for keys in the red-black tree
-///
-///     `V`
-///         the type used for values in the red-black tree
-///
-///     `Context`
-///         the type of the context which can be passed to the comparison
-///         function of the red-black tree
-///
-///     `order`
-///         the comparison function to use for the red-black tree
-///
-///     `options`
-///         additional options which change how the red-black tree operates
-///
-///     `augmented_callbacks`
-///         callbacks to use for the augmented red-black tree
+///  * `K`: the type used for keys in the red-black tree
+///  * `V`: the type used for values in the red-black tree
+///  * `Context`: the type of the context which can be passed to the comparison function of the red-black tree
+///  * `order`: the comparison function to use for the red-black tree
+///  * `options`: additional options which change how the red-black tree operates
+///  * `augmented_callbacks`: callbacks to use for the augmented red-black tree
 pub fn RBTree(
     comptime K: type,
     comptime V: type,

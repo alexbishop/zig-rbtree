@@ -1,4 +1,7 @@
-//! This file contains the basic functionality of a red-black tree
+//! This file contains the basic functionality of a red-black tree.
+//!
+//! The intention here is to allow for optimisations which would
+//! not be possible with a `RBTreeUnmanaged` object.
 const std = @import("std");
 const Order = std.math.Order;
 
@@ -6,22 +9,13 @@ const RBNode = @import("./rb_node.zig");
 
 pub const Options = RBNode.Options;
 
-/// A set of callbacks to be used in an augmented red-black tree.
+/// A container for the callbacks of an augmented red-black tree.
 ///
 /// Arguments:
-///
-///     `K`
-///         is the key type of the red-black tree.
-///
-///     `V`
-///         is the value type of the red-black tree.
-///
-///     `Context`
-///         is the type of the context which should be passed to the
-///         compare function.
-///
-///     `options`
-///         is the options which were used to create the red-black tree
+///  * `K`: is the key type of the red-black tree.
+///  * `V`: is the value type of the red-black tree.
+///  * `Context`: is the type of the context which should be passed to the compare function.
+///  * `options`: is the options which were used to create the red-black tree
 pub fn Callbacks(
     comptime K: type,
     comptime V: type,
@@ -87,6 +81,15 @@ pub fn Callbacks(
     };
 }
 
+/// Basic functions for the implementation of a red-black tree.
+///
+/// Arguments:
+///  * `K`: the type used for keys in the red-black tree
+///  * `V`: the type used for values in the red-black tree
+///  * `Context`: the type of the context which can be passed to the comparison function of the red-black tree
+///  * `order`: the comparison function to use for the red-black tree
+///  * `options`: additional options which change how the red-black tree operates
+///  * `augmented_callbacks`: callbacks to use for the augmented red-black tree
 pub fn RBTreeImplementation(
     comptime K: type,
     comptime V: type,
@@ -113,17 +116,19 @@ pub fn RBTreeImplementation(
             parent: *Node,
             direction: Direction,
         };
-        pub const NodeOrLocationResultTag = enum {
+        pub const FindNodeOrLocationResultTag = enum {
             node,
             location,
         };
-        pub const FindNodeOrLocationResult = union(NodeOrLocationResultTag) {
+        pub const FindNodeOrLocationResult = union(FindNodeOrLocationResultTag) {
             node: *Node,
             location: Location,
         };
 
-        /// Either finds the given key in the tree, or finds the location where the
-        /// given key should be inserted for order to be preserved
+        /// Either finds a value or an insertion location in the tree.
+        ///
+        /// If the given key lies in the tree with the given root, then the corresponding node
+        /// is returned, otherwise, the location where the key should be inserted is returned.
         pub fn findNodeOrLocation(
             root: *Node,
             ctx: Context,
@@ -169,7 +174,11 @@ pub fn RBTreeImplementation(
             }
         }
 
-        /// Makes the given node the new root of the tree.
+        /// Makes the given node the root of the tree.
+        ///
+        /// This function assumes that `root_ref.* == null` before calling.
+        ///
+        /// Notice that we require the context as it is passed to any callbacks.
         pub fn makeRoot(
             root_ref: *?*Node,
             ctx: Context,
@@ -194,8 +203,31 @@ pub fn RBTreeImplementation(
             }
         }
 
-        /// Inserts a given node into a nonempty red-black tree at a given location,
-        /// then recolors and corrects the tree
+        /// Inserts a given node into a non-empty tree and rebalances.
+        ///
+        /// Notice that the tree is remains sorted if and only if adding `new_node`
+        /// to the tree in the given location keeps the tree in sorted order.
+        ///
+        /// This function assumes that `location` described a null child of a node
+        /// in the tree with the given root.
+        ///
+        /// Notice that `root_red` is of type `**Node` and not `*?*Node` like in
+        /// `makeRoot` or `removeNode`. Thus, in order to insert into a tree, one
+        /// must perform the following.
+        ///
+        /// ```zig
+        /// // assume that
+        /// //  `root` is of type `*?*Node`
+        /// //  `node` is of type `*Node`
+        /// //  `Implemnetation` was created with `RBImplementation`
+        /// //  `ctx` is of type `Context`
+        /// //  `location` is of type `Location`
+        /// // then we may insert `node` as follows
+        /// if (root) |*root_ref| {
+        ///     // `root_ref` is of type `**Node`
+        ///     Implementation.insertNode(root_ref, ctx, node, location);
+        /// }
+        /// ```
         pub fn insertNode(
             root_ref: **Node,
             ctx: Context,
@@ -413,8 +445,14 @@ pub fn RBTreeImplementation(
             }
         }
 
-        // Swaps two nodes position in the tree by modifying their
-        // parent and children pointers.
+        /// Swaps the position of two nodes in the tree.
+        ///
+        /// This function only modifies the parents, children and potentially the root.
+        /// This function does not copy or modify the key, value or additional data of any
+        /// node in the tree.
+        ///
+        /// This function assumes that `node1 != node2` and that both of these nodes belong
+        /// to the tree with the given root.
         pub fn swapNodePosition(
             root_ref: **Node,
             node1: *Node,
@@ -489,6 +527,24 @@ pub fn RBTreeImplementation(
             }
         }
 
+        /// Performs a tree rotation and returns the new root.
+        ///
+        /// **Example:**
+        ///
+        /// ```txt
+        ///              ROTATE n LEFT
+        ///
+        ///          n                      r
+        ///        /   \                  /   \
+        ///       X     r    ==>         n     Y
+        ///           /   \            /   \
+        ///          s     Y          X     s
+        ///
+        /// In the above
+        ///   n = node
+        ///   r = new_subtree_root
+        ///   s = swapped subtree
+        /// ```
         pub fn rotateNode(
             root_ref: **Node,
             node: *Node,
@@ -566,7 +622,11 @@ pub fn RBTreeImplementation(
             return new_subtree_root;
         }
 
-        /// Removes a node from the red-black tree
+        /// Removes a node and rebalances the red-black tree.
+        ///
+        /// This function assumes that node belongs to the tree given by `root_ref_opt`.
+        ///
+        /// **Note:** This function requires the context as it may invoke a callback.
         pub fn removeNode(
             root_ref_opt: *?*Node,
             ctx: Context,
