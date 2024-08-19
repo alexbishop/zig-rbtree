@@ -1,4 +1,4 @@
-//! This is the documentation for [zig rbtree](https://github.com/alexbishop/zig-rbtree) version 0.0.2.
+//! This is the documentation for [zig rbtree](https://github.com/alexbishop/zig-rbtree) version 0.0.3.
 //!
 //! For the documentation of any other version, please checkout the corresponding
 //! version of the code from the [Github repo](https://github.com/alexbishop/zig-rbtree) and run the following
