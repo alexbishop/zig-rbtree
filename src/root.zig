@@ -1,15 +1,14 @@
-//! This is the documentation for zig rbtree version 0.0.2.
+//! This is the documentation for [zig rbtree](https://github.com/alexbishop/zig-rbtree) version 0.0.2.
 //!
 //! For the documentation of any other version, please checkout the corresponding
-//! version of the code and run the following
+//! version of the code from the [Github repo](https://github.com/alexbishop/zig-rbtree) and run the following
 //!
 //! ```
 //! rm -rf ~/.cache/zig
 //! zig build docs
 //! ```
 //!
-//! Notice that we remove the global zig cache since it interfears with the generation
-//! of the documentation.
+//! Notice that we remove the global zig cache since it interferes with the generation of the documentation.
 const std = @import("std");
 
 const managed = @import("./rb_managed.zig");
