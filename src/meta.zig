@@ -24,18 +24,14 @@ pub fn order(a: anytype, b: @TypeOf(a)) Order {
             }
         },
         .Array => {
-            {
-                const tmp = order(a.len, b.len);
+            if (a.len > b.len) return order(b, a).invert();
+            for (a, 0..) |_, i| {
+                const tmp = order(a[i], b[i]);
                 if (tmp != .eq) {
                     return tmp;
                 }
             }
-            for (a, 0..) |e, i| {
-                const tmp = order(e, b[i]);
-                if (tmp != .eq) {
-                    return tmp;
-                }
-            }
+            if (a.len < b.len) return .lt;
             return .eq;
         },
         .Vector => |info| {
@@ -109,9 +105,9 @@ pub fn order(a: anytype, b: @TypeOf(a)) Order {
                 return switch (a) {
                     inline else => |val, tag| return order(val, @field(b, @tagName(tag))),
                 };
+            } else {
+                @compileError("cannot compare untagged union type " ++ @typeName(T));
             }
-
-            @compileError("cannot compare untagged union type " ++ @typeName(T));
         },
         .Pointer => |info| {
             return switch (info.size) {
