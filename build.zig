@@ -42,7 +42,7 @@ pub fn build(b: *std.Build) void {
     // generate docs
     {
         const rbtree_docs_lib = b.addStaticLibrary(.{
-            .name = "rbtreelib",
+            .name = "rbtree",
             .root_source_file = b.path("src/rbtree.zig"),
             .target = target,
             .optimize = optimize,
