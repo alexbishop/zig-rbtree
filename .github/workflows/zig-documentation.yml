@@ -31,10 +31,10 @@ jobs:
         uses: goto-bus-stop/setup-zig@v2
         with:
           version: 0.13.0
-      - name: Build with Zig
-        run: |
-          rm -rf "$HOME/.cache/zig" .zig-cache zig-out
-          zig build docs
+      - name: Removing old cache files
+        run: rm -rf "$HOME/.cache/zig" .zig-cache zig-out
+      - name: Build the Documentation
+        run: zig build docs
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
         with:
