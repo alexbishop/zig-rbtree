@@ -113,11 +113,15 @@ pub fn order(a: anytype, b: @TypeOf(a)) Order {
             return switch (info.size) {
                 .One, .Many, .C => order(@intFromPtr(a), @intFromPtr(b)),
                 .Slice => {
-                    {
-                        const tmp = order(a.len, b.len);
-                        if (tmp != .eq) return tmp;
+                    if (a.len > b.len) return order(b, a).invert();
+                    for (a, 0..) |_, i| {
+                        const tmp = order(a[i], b[i]);
+                        if (tmp != .eq) {
+                            return tmp;
+                        }
                     }
-                    return order(a.ptr, b.ptr);
+                    if (a.len < b.len) return .lt;
+                    return .eq;
                 },
             };
         },
