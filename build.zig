@@ -7,7 +7,7 @@ pub fn build(b: *std.Build) void {
     const module = b.addModule(
         "rbtree",
         .{
-            .root_source_file = b.path("src/root.zig"),
+            .root_source_file = b.path("src/rbtree.zig"),
             .target = target,
             .optimize = optimize,
         },
@@ -43,7 +43,7 @@ pub fn build(b: *std.Build) void {
     {
         const rbtree_docs_lib = b.addStaticLibrary(.{
             .name = "rbtreelib",
-            .root_source_file = b.path("src/root.zig"),
+            .root_source_file = b.path("src/rbtree.zig"),
             .target = target,
             .optimize = optimize,
         });
