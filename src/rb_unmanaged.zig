@@ -262,7 +262,6 @@ pub fn RBTreeUnmanaged(
                 key,
                 value,
                 clobber_option,
-                undefined,
             );
         }
 
