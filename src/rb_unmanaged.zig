@@ -131,10 +131,10 @@ pub fn RBTreeUnmanaged(
         }
 
         fn initSubtreeRec(
-            SortedIteratorType: type,
+            SortedKVIterator_Ptr: type,
             allocator: Allocator,
             subtree_size: usize,
-            iterator_ref: *SortedIteratorType,
+            iterator_ref: SortedKVIterator_Ptr,
             subtree_root_color: NodeColor,
         ) !?*Node {
             if (subtree_size == 0) return null;
@@ -149,7 +149,7 @@ pub fn RBTreeUnmanaged(
             // read the left subtree
 
             const left_subtree: ?*Node = try initSubtreeRec(
-                SortedIteratorType,
+                SortedKVIterator_Ptr,
                 allocator,
                 midpoint,
                 iterator_ref,
@@ -174,7 +174,7 @@ pub fn RBTreeUnmanaged(
             // read the right subtree
 
             const right_subtree: ?*Node = try initSubtreeRec(
-                SortedIteratorType,
+                SortedKVIterator_Ptr,
                 allocator,
                 subtree_size - midpoint - 1,
                 iterator_ref,
@@ -190,23 +190,79 @@ pub fn RBTreeUnmanaged(
             return node;
         }
 
-        pub fn initFromSortedReference(
-            IteratorType: type,
+        // Constructs a red-black tree from a sorted list
+        //
+        // Arguments:
+        //  * `SortedKVIterator`
+        //      must either be the type of an iterator which returns value
+        //      of type `KV` or the type of a pointer to such an object
+        //  * `allocator`
+        //      the allocator to use when constructing the element
+        //  * `size`
+        //      the number of elements to read from `iterator`
+        //  * `iterator`
+        //      an iterator to key-value pairs which are in sorted order.
+        //
+        //  The purpose of this method is to provide a way of initialising a
+        //  red-black tree from a sorted list without the need for swaps, or
+        //  recolours.
+        //
+        //  **Note:**
+        //  unlike most other methods in this library, this initialisation
+        //  method is implemented using recursion. (As one would expect, the
+        //  total required length of the stack is proportial to the log of `size`.)
+        pub fn initFromSortedKVIterator(
+            SortedKVIterator: type,
             allocator: Allocator,
             size: usize,
-            iterator_ref: *IteratorType,
+            iterator: SortedKVIterator,
         ) !Self {
+            comptime {
+                switch (@typeInfo(SortedKVIterator)) {
+                    .@"struct" => {},
+                    .pointer => |p| {
+                        switch (@typeInfo(p)) {
+                            .@"struct" => {},
+                            else => {
+                                @compileError(
+                                    \\  Invalid value for type `SortedKVIterator`
+                                    \\      must either be the type of an iterator which returns value
+                                    \\      of type `KV` or the type of a pointer to such an object
+                                );
+                            },
+                        }
+                    },
+                    else => {
+                        @compileError(
+                            \\  Invalid value for type `SortedKVIterator`
+                            \\      must either be the type of an iterator which returns value
+                            \\      of type `KV` or the type of a pointer to such an object
+                        );
+                    },
+                }
+            }
             const tree_depth: usize = @typeInfo(usize).int.bits - @clz(size);
             // we want to make sure that the deepest nodes are colored red,
             // we color our nodes by alternating between black and red
             // Thus if tree_depth is even, we start with black, and if
             // tree_depth is odd, we start with red.
             //
+            const RefType: type = switch (@typeInfo(SortedKVIterator)) {
+                .@"struct" => *SortedKVIterator,
+                else => SortedKVIterator,
+            };
+            // we make a copy in case SortedKVIterator is not a pointer.
+            // We need to make a copy so that we can modify it in this case
+            var iter_cpy = iterator;
+
             const tree_root: ?*Node = try initSubtreeRec(
-                IteratorType,
+                RefType,
                 allocator,
                 size,
-                iterator_ref,
+                switch (@typeInfo(SortedKVIterator)) {
+                    .@"struct" => &iter_cpy,
+                    else => iter_cpy,
+                },
                 switch (tree_depth % 2) {
                     0 => .black,
                     1 => .red,
@@ -220,33 +276,17 @@ pub fn RBTreeUnmanaged(
             };
         }
 
-        /// Initialises a red black tree from a sorted list
-        pub fn initFromSorted(
-            IteratorType: type,
-            allocator: Allocator,
-            size: usize,
-            in_iterator: IteratorType,
-        ) !Self {
-            var iterator = in_iterator;
-            return initFromSortedReference(
-                IteratorType,
-                allocator,
-                size,
-                &iterator,
-            );
-        }
-
         const KVSliceIterator = struct {
             data: []const KV,
-            pos: usize = 0,
+            index: usize = 0,
 
             pub fn next(self: *KVSliceIterator) ?KV {
-                if (self.pos == self.data.len) {
+                if (self.index == self.data.len) {
                     return null;
                 } else {
-                    const retval = self.data[self.pos];
-                    self.pos += 1;
-                    return retval;
+                    const kv = self.data[self.index];
+                    self.index += 1;
+                    return kv;
                 }
             }
         };
@@ -254,7 +294,7 @@ pub fn RBTreeUnmanaged(
             allocator: Allocator,
             slice: []const KV,
         ) !Self {
-            return initFromSorted(
+            return initFromSortedKVIterator(
                 KVSliceIterator,
                 allocator,
                 slice.len,
@@ -266,16 +306,16 @@ pub fn RBTreeUnmanaged(
 
         const SliceIterator = struct {
             data: []const K,
-            pos: usize = 0,
+            index: usize = 0,
 
             pub fn next(self: *SliceIterator) ?KV {
-                if (self.pos == self.data.len) {
+                if (self.index == self.data.len) {
                     return null;
                 } else {
-                    const retval = self.data[self.pos];
-                    self.pos += 1;
+                    const key = self.data[self.index];
+                    self.index += 1;
                     return .{
-                        .key = retval,
+                        .key = key,
                         .value = undefined,
                     };
                 }
@@ -285,7 +325,7 @@ pub fn RBTreeUnmanaged(
             allocator: Allocator,
             slice: []const K,
         ) !Self {
-            return initFromSorted(
+            return initFromSortedKVIterator(
                 SliceIterator,
                 allocator,
                 slice.len,

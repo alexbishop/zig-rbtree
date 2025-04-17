@@ -2,11 +2,11 @@
 
 An extensible implementation of augmented red-black trees in the Zig programming language.
 
-**Note:** This package was written for zig version 0.14.0.
+**Note:** This package is written for zig version 0.14.0.
 
 For some further documentation, see https://alexbishop.github.io/zig-rbtree
 
-For intructions on how to use this package in your own code, see the [Releases page](https://github.com/alexbishop/zig-rbtree/releases).
+For instructions on how to use this package in your code, see the [Releases page](https://github.com/alexbishop/zig-rbtree/releases).
 
 ## Tests
 
@@ -20,21 +20,43 @@ As the name suggests this script was written to be run with [gawk](https://www.g
 
 ## New Features
 
-`RBTreeUnmanaged` now has the following additional intialisations:
+### Background
+
+In all of the new methods listed below, `SortedKVIterator` is either the type of a Zig iterator that returns `KV` (see https://zig.guide/standard-library/iterators/) or a pointer to one.
+
+For example, the following is an implementation of such an iterator (where `KV` is the subtype of `RBTree` or `RBTreeUnmanaged`):
 
 ```zig
-pub fn initFromSortedReference(
-    IteratorType: type,
-    allocator: Allocator,
-    size: usize,
-    iterator_ref: *IteratorType,
-) !Self
+const KVSliceIterator = struct {
+    data: []const KV,
+    index: usize = 0,
 
-pub fn initFromSorted(
-    IteratorType: type,
+    pub fn next(self: *KVSliceIterator) ?KV {
+        if (self.index == self.data.len) {
+            return null;
+        } else {
+            const kv = self.data[self.index];
+            self.index += 1;
+            return kv;
+        }
+    }
+};
+```
+
+Thus, `KVSliceIterator` and `*KVSliceIterator` are both valid values for `SortedKVIterator`.
+
+If `SortedKVIterator` is a pointer (and the function does not return an error), then the given iterator will point to the entry which lies immediately after the last entry that was added to the red-black tree.
+
+### Added methods
+
+`RBTreeUnmanaged` now has the following additional initialisations:
+
+```zig
+pub fn initFromSortedKVIterator(
+    SortedKVIterator: type,
     allocator: Allocator,
     size: usize,
-    in_iterator: IteratorType,
+    iterator: SortedKVIterator,
 ) !Self
 
 pub fn initFromSortedKVSlice(
@@ -51,20 +73,12 @@ pub fn initFromSortedSlice(
 Similarly, `RBTree` has the following new methods.
 
 ```zig
-pub fn initFromSortedReference(
-    IteratorType: type,
+pub fn initFromSortedKVIterator(
+    SortedKVIterator: type,
     allocator: Allocator,
     ctx: Context,
     size: usize,
-    iterator_ref: *IteratorType,
-) !Self
-
-pub fn initFromSorted(
-    IteratorType: type,
-    allocator: Allocator,
-    ctx: Context,
-    size: usize,
-    in_iterator: IteratorType,
+    iterator: SortedKVIterator,
 ) !Self
 
 pub fn initFromSortedKVSlice(
@@ -221,9 +235,9 @@ pub fn makeRoot(
 ) void {
 ```
 
-#### 2.1.3 Insert as internal node
+#### 2.1.3 Insert as an internal node
 
-Insert into non-empty tree.
+Insert into a non-empty tree.
 
 ```zig
 pub fn insertNode(
