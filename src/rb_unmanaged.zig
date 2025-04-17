@@ -110,53 +110,16 @@ pub fn RBTreeUnmanaged(
             }
         }
 
-        fn calculateOptimalBlackDepth(subtree_size: usize) usize {
-            if (subtree_size == 0) return 0;
-            if (subtree_size == 1) return 1;
-
-            const maximum_tree_size: usize = @as(usize, std.math.maxInt(usize)) >> @truncate(@clz(subtree_size));
-
-            const bit_count = @typeInfo(usize).int.bits - @clz(subtree_size);
-            if (subtree_size == maximum_tree_size) {
-                return bit_count;
-            } else {
-                return bit_count - 1;
-            }
-        }
-
         fn calculateLeftSubtreeSize(subtree_size: usize) usize {
-            // let's check the small cases first
-            switch (subtree_size) {
-                0, 1 => return 0,
-                //      x    or     x
-                //    /           /   \
-                //   y           y     z
-                2, 3 => return 1,
-                //        x
-                //      /   \
-                //     y     z
-                //   /
-                //  a
-                4 => return 2,
-                //        x      or       x       or       x
-                //      /   \           /   \            /   \
-                //     y     z         y     z          y     z
-                //   /   \           /   \   |        /  \    |\
-                //  a     b         a     b  c       a    b   c d
-                5, 6, 7 => return 3,
-                // for similar reasons, we have the following
-                8 => return 4,
-                9 => return 5,
-                10 => return 6,
-                11, 12, 13, 14, 15 => return 7,
-                else => {},
-            }
+            if (subtree_size <= 1) return 0;
 
             // notice that we need to truncate in the following
             // for example, on a 64-bit system, this would be a truncation from u7 to u6.
             // This is valid as we only ever need the extra bit when `subtree_size` is all zeros which is
             // covered by the above base cases
             const maximum_tree_size: usize = @as(usize, std.math.maxInt(usize)) >> @truncate(@clz(subtree_size));
+            // for the next two numbers to make sense, we need for subtree_size to have at least 3 bits.
+            // This is the case when `subtree_size > 2` which is covered in out previous cases.
             const left_subtree_max_size: usize = maximum_tree_size >> 1;
             const right_subtree_min_size: usize = maximum_tree_size >> 2;
 
@@ -172,8 +135,14 @@ pub fn RBTreeUnmanaged(
             allocator: Allocator,
             subtree_size: usize,
             iterator_ref: *SortedIteratorType,
+            subtree_root_color: NodeColor,
         ) !?*Node {
             if (subtree_size == 0) return null;
+
+            const next_subtree_root_color: NodeColor = switch (subtree_root_color) {
+                .red => .black,
+                .black => .red,
+            };
 
             const midpoint = calculateLeftSubtreeSize(subtree_size);
 
@@ -184,6 +153,7 @@ pub fn RBTreeUnmanaged(
                 allocator,
                 midpoint,
                 iterator_ref,
+                next_subtree_root_color,
             );
             errdefer deinitSubtree(allocator, left_subtree);
 
@@ -198,6 +168,7 @@ pub fn RBTreeUnmanaged(
                 .subtree_size = if (options.store_subtree_sizes) subtree_size else void{},
                 .key = kv.key,
                 .value = kv.value,
+                .color = subtree_root_color,
             });
 
             // read the right subtree
@@ -207,6 +178,7 @@ pub fn RBTreeUnmanaged(
                 allocator,
                 subtree_size - midpoint - 1,
                 iterator_ref,
+                next_subtree_root_color,
             );
 
             node.setChild(.left, left_subtree);
@@ -218,41 +190,29 @@ pub fn RBTreeUnmanaged(
             return node;
         }
 
-        fn colorSubtree(
-            subtree_root: ?*Node,
-            black_depth: usize,
-        ) void {
-            if (subtree_root) |root| {
-                if (black_depth > 0) {
-                    root.setColor(.black);
-                } else {
-                    root.setColor(.red);
-                }
-
-                const subtree_black_depth = if (black_depth == 0) 0 else black_depth - 1;
-
-                colorSubtree(root.getChild(.left), subtree_black_depth);
-                colorSubtree(root.getChild(.right), subtree_black_depth);
-            }
-        }
-
         pub fn initFromSortedReference(
             IteratorType: type,
             allocator: Allocator,
             size: usize,
             iterator_ref: *IteratorType,
         ) !Self {
+            const tree_depth: usize = @typeInfo(usize).int.bits - @clz(size);
+            // we want to make sure that the deepest nodes are colored red,
+            // we color our nodes by alternating between black and red
+            // Thus if tree_depth is even, we start with black, and if
+            // tree_depth is odd, we start with red.
+            //
             const tree_root: ?*Node = try initSubtreeRec(
                 IteratorType,
                 allocator,
                 size,
                 iterator_ref,
+                switch (tree_depth % 2) {
+                    0 => .black,
+                    1 => .red,
+                    else => unreachable,
+                },
             );
-
-            // the leftmost child is the deepest, so let's compute the depth
-            // all leaves of the tree are depth `depth` or `depth-1`
-            const black_depth: usize = calculateOptimalBlackDepth(size);
-            colorSubtree(tree_root, black_depth);
 
             return .{
                 .root = tree_root,
