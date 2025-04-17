@@ -2,7 +2,7 @@
 
 An extensible implementation of augmented red-black trees in the Zig programming language.
 
-**Note:** This package was written for zig version 0.13.0.
+**Note:** This package was written for zig version 0.14.0.
 
 For some further documentation, see https://alexbishop.github.io/zig-rbtree
 
@@ -17,6 +17,68 @@ We note here that these tests are a translation of the tests in [stanislavkozlov
 This translation was performed using the awk script given in `scripts/tests.gawk` in this repository, followed by a small amount of manual editing. (We note here that the tests in [stanislavkozlovski/Red-Black-Tree](https://github.com/stanislavkozlovski/Red-Black-Tree/tree/cb3cefb420bfa6c1d1fc703cefad54e209c7438c) contained a few typos which were found after the translation.)
 As the name suggests this script was written to be run with [gawk](https://www.gnu.org/software/gawk/manual/gawk.html).
 (At this point, there are still 6 small tests left to be translated.)
+
+## New Features
+
+`RBTreeUnmanaged` now has the following additional intialisations:
+
+```zig
+pub fn initFromSortedReference(
+    IteratorType: type,
+    allocator: Allocator,
+    size: usize,
+    iterator_ref: *IteratorType,
+) !Self
+
+pub fn initFromSorted(
+    IteratorType: type,
+    allocator: Allocator,
+    size: usize,
+    in_iterator: IteratorType,
+) !Self
+
+pub fn initFromSortedKVSlice(
+    allocator: Allocator,
+    slice: []const KV,
+) !Self
+
+pub fn initFromSortedSlice(
+    allocator: Allocator,
+    slice: []const K,
+) !Self
+```
+
+Similarly, `RBTree` has the following new methods.
+
+```zig
+pub fn initFromSortedReference(
+    IteratorType: type,
+    allocator: Allocator,
+    ctx: Context,
+    size: usize,
+    iterator_ref: *IteratorType,
+) !Self
+
+pub fn initFromSorted(
+    IteratorType: type,
+    allocator: Allocator,
+    ctx: Context,
+    size: usize,
+    in_iterator: IteratorType,
+) !Self
+
+pub fn initFromSortedKVSlice(
+    allocator: Allocator,
+    ctx: Context,
+    slice: []const KV,
+) !Self
+
+pub fn initFromSortedSlice(
+    allocator: Allocator,
+    ctx: Context,
+    slice: []const K,
+) !Self
+```
 
 ## 1. Examples
 
