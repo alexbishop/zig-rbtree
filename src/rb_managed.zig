@@ -9,10 +9,10 @@ const RBTreeTag = opaque {};
 
 pub fn isRBTree(comptime T: type) bool {
     switch (@typeInfo(T)) {
-        .Struct => |_| {
+        .@"struct" => |_| {
             if (@hasDecl(T, "tag")) {
                 switch (@typeInfo(@TypeOf(T.tag))) {
-                    .Type => return (T.tag == RBTreeTag),
+                    .type => return (T.tag == RBTreeTag),
                     else => return false,
                 }
             } else {
@@ -86,6 +86,71 @@ pub fn RBTree(
         ) Self {
             return Self{
                 .managed = ManagedType.init(),
+                .ctx = ctx,
+                .allocator = allocator,
+            };
+        }
+
+        pub fn initFromSortedReference(
+            IteratorType: type,
+            allocator: Allocator,
+            ctx: Context,
+            size: usize,
+            iterator_ref: *IteratorType,
+        ) !Self {
+            return Self{
+                .managed = try ManagedType.initFromSortedReference(
+                    IteratorType,
+                    allocator,
+                    size,
+                    iterator_ref,
+                ),
+                .ctx = ctx,
+                .allocator = allocator,
+            };
+        }
+        pub fn initFromSorted(
+            IteratorType: type,
+            allocator: Allocator,
+            ctx: Context,
+            size: usize,
+            in_iterator: IteratorType,
+        ) !Self {
+            return Self{
+                .managed = try ManagedType.initFromSortedReference(
+                    IteratorType,
+                    allocator,
+                    size,
+                    in_iterator,
+                ),
+                .ctx = ctx,
+                .allocator = allocator,
+            };
+        }
+        pub fn initFromSortedKVSlice(
+            allocator: Allocator,
+            ctx: Context,
+            slice: []const KV,
+        ) !Self {
+            return Self{
+                .managed = try ManagedType.initFromSortedKVSlice(
+                    allocator,
+                    slice,
+                ),
+                .ctx = ctx,
+                .allocator = allocator,
+            };
+        }
+        pub fn initFromSortedSlice(
+            allocator: Allocator,
+            ctx: Context,
+            slice: []const K,
+        ) !Self {
+            return Self{
+                .managed = try ManagedType.initFromSortedSlice(
+                    allocator,
+                    slice,
+                ),
                 .ctx = ctx,
                 .allocator = allocator,
             };

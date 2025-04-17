@@ -1,6 +1,7 @@
 .{
-    .name = "rbtree",
-    .version = "0.0.4",
+    .name = .rbtree,
+    .version = "0.2.0-alpha",
+    .fingerprint = 0x82a0a884d3f69496,
     .paths = .{
         "example",
         "src",

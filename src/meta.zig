@@ -12,9 +12,9 @@ pub fn order(a: anytype, b: @TypeOf(a)) Order {
     const T = @TypeOf(a);
 
     switch (@typeInfo(T)) {
-        .Type => return order(@typeName(a), @typeName(b)),
-        .Void, .NoReturn, .Undefined, .Null => return .eq,
-        .Bool => {
+        .type => return order(@typeName(a), @typeName(b)),
+        .void, .noreturn, .undefined, .null => return .eq,
+        .bool => {
             if (a == b) {
                 return .eq;
             } else if (a) {
@@ -23,7 +23,7 @@ pub fn order(a: anytype, b: @TypeOf(a)) Order {
                 return .lt;
             }
         },
-        .Array => {
+        .array => {
             if (a.len > b.len) return order(b, a).invert();
             for (a, 0..) |_, i| {
                 const tmp = order(a[i], b[i]);
@@ -34,7 +34,7 @@ pub fn order(a: anytype, b: @TypeOf(a)) Order {
             if (a.len < b.len) return .lt;
             return .eq;
         },
-        .Vector => |info| {
+        .vector => |info| {
             var i: usize = 0;
             while (i < info.len) : (i += 1) {
                 const tmp = order(a[i], b[i]);
@@ -44,7 +44,7 @@ pub fn order(a: anytype, b: @TypeOf(a)) Order {
             }
             return .eq;
         },
-        .Struct => |info| {
+        .@"struct" => |info| {
             inline for (info.fields) |field_info| {
                 const field_order = order(
                     @field(a, field_info.name),
@@ -56,7 +56,7 @@ pub fn order(a: anytype, b: @TypeOf(a)) Order {
             }
             return .eq;
         },
-        .Optional => {
+        .optional => {
             // null < not_null
             if (a == null and b == null) {
                 return .eq;
@@ -68,7 +68,7 @@ pub fn order(a: anytype, b: @TypeOf(a)) Order {
                 return order(a.?, b.?);
             }
         },
-        .ErrorUnion => {
+        .error_union => {
             // we choose `error < value`
             if (a) |a_p| {
                 if (b) |b_p| {
@@ -84,13 +84,13 @@ pub fn order(a: anytype, b: @TypeOf(a)) Order {
                 }
             }
         },
-        .ErrorSet => {
+        .error_set => {
             return order(@errorName(a), @errorName(b));
         },
-        .Enum, .EnumLiteral => {
+        .@"enum", .enum_literal => {
             return order(@tagName(a), @tagName(b));
         },
-        .Union => |info| {
+        .@"union" => |info| {
             if (info.tag_type) |UnionTag| {
                 const tag_a: UnionTag = a;
                 const tag_b: UnionTag = b;
@@ -109,10 +109,10 @@ pub fn order(a: anytype, b: @TypeOf(a)) Order {
                 @compileError("cannot compare untagged union type " ++ @typeName(T));
             }
         },
-        .Pointer => |info| {
+        .pointer => |info| {
             return switch (info.size) {
-                .One, .Many, .C => order(@intFromPtr(a), @intFromPtr(b)),
-                .Slice => {
+                .one, .many, .c => order(@intFromPtr(a), @intFromPtr(b)),
+                .slice => {
                     if (a.len > b.len) return order(b, a).invert();
                     for (a, 0..) |_, i| {
                         const tmp = order(a[i], b[i]);
@@ -125,7 +125,7 @@ pub fn order(a: anytype, b: @TypeOf(a)) Order {
                 },
             };
         },
-        .Int, .Float, .ComptimeInt, .ComptimeFloat => return std.math.order(a, b),
+        .int, .float, .comptime_int, .comptime_float => return std.math.order(a, b),
         else => @compileError("cannot compare variables of type " ++ @typeName(T)),
     }
 }

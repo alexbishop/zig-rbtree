@@ -17,10 +17,10 @@ const RBTreeUnmanagedTag = opaque {};
 /// `RBTreeUnmanaged` can be ontained as `T.args`.
 pub fn isRBTreeUnmanaged(comptime T: type) bool {
     switch (@typeInfo(T)) {
-        .Struct => |_| {
+        .@"struct" => |_| {
             if (@hasDecl(T, "tag")) {
                 switch (@typeInfo(@TypeOf(T.tag))) {
-                    .Type => return (T.tag == RBTreeUnmanagedTag),
+                    .type => return (T.tag == RBTreeUnmanagedTag),
                     else => return false,
                 }
             } else {
@@ -85,7 +85,7 @@ pub fn RBTreeUnmanaged(
         pub const Direction = implementation.Direction;
         pub const Node = implementation.Node;
 
-        const KV = struct {
+        pub const KV = struct {
             key: K,
             value: V,
         };
@@ -108,6 +108,252 @@ pub fn RBTreeUnmanaged(
                     .size = 0,
                 };
             }
+        }
+
+        fn calculateOptimalBlackDepth(subtree_size: usize) usize {
+            if (subtree_size == 0) return 0;
+            if (subtree_size == 1) return 1;
+
+            const bit_count = @typeInfo(usize).int.bits - @clz(subtree_size);
+            const test1: usize = shiftAdd(bit_count);
+            if (subtree_size == test1) {
+                return bit_count;
+            } else {
+                return bit_count - 1;
+            }
+        }
+
+        fn shiftAdd(num: usize) usize {
+            if (num >= @typeInfo(usize).int.bits) {
+                return std.math.maxInt(usize);
+            } else {
+                return (@as(usize, 1) <<| num) - 1;
+            }
+        }
+
+        fn calculateLeftSubtreeSize(subtree_size: usize) usize {
+            // let's check the small cases first
+            switch (subtree_size) {
+                0, 1 => return 0,
+                //      x    or     x
+                //    /           /   \
+                //   y           y     z
+                2, 3 => return 1,
+                //        x
+                //      /   \
+                //     y     z
+                //   /
+                //  a
+                4 => return 2,
+                //        x      or       x       or       x
+                //      /   \           /   \            /   \
+                //     y     z         y     z          y     z
+                //   /   \           /   \   |        /  \    |\
+                //  a     b         a     b  c       a    b   c d
+                5, 6, 7 => return 3,
+                // for similar reasons, we have the following
+                8 => return 4,
+                9 => return 5,
+                10 => return 6,
+                11, 12, 13, 14, 15 => return 7,
+                else => {},
+            }
+
+            // a perfect binary tree of depth n will have exactly 0b11111...111 nodes,
+            // that id the number of 1's in the binary expansion is exactly n
+            // For example,
+            //      depth 1 => 0b1 = 1 node
+            //      depth 2 => 0b11 = 3 nodes (the root, plus a left and right node)
+            //
+            // We begin by calculating the depth of the largest perfect binary tree
+            // that can be contained as a subtree, that is, the largest number of the
+            // form 0b1111...11 which compares less than or equal to `subtree_size`
+
+            const bit_count = @typeInfo(usize).int.bits - @clz(subtree_size);
+            {
+                const test1: usize = shiftAdd(bit_count);
+                if (subtree_size == test1) {
+                    return shiftAdd(bit_count - 1);
+                }
+            }
+
+            const left_perfect_subtree_size: usize = shiftAdd(bit_count - 1);
+            const right_perfect_subtree_size: usize = shiftAdd(bit_count - 2);
+            if (left_perfect_subtree_size + right_perfect_subtree_size + 1 <= subtree_size) {
+                // the left subtree cannot is perfect
+                return left_perfect_subtree_size;
+            } else {
+                // the right subtree is perfect, so the extra stuff goes to the left subtree
+                return subtree_size - 1 - right_perfect_subtree_size;
+            }
+        }
+
+        fn initSubtreeRec(
+            SortedIteratorType: type,
+            allocator: Allocator,
+            subtree_size: usize,
+            iterator_ref: *SortedIteratorType,
+        ) !?*Node {
+            if (subtree_size == 0) return null;
+
+            const midpoint = calculateLeftSubtreeSize(subtree_size);
+
+            // read the left subtree
+
+            const left_subtree: ?*Node = try initSubtreeRec(
+                SortedIteratorType,
+                allocator,
+                midpoint,
+                iterator_ref,
+            );
+            errdefer deinitSubtree(allocator, left_subtree);
+
+            // read the subtree root
+
+            const node: *Node = try allocator.create(Node);
+            errdefer allocator.destroy(node);
+
+            const kv: KV = iterator_ref.next().?;
+
+            node.* = Node.init(.{
+                .subtree_size = if (options.store_subtree_sizes) subtree_size else void{},
+                .key = kv.key,
+                .value = kv.value,
+            });
+
+            // read the right subtree
+
+            const right_subtree: ?*Node = try initSubtreeRec(
+                SortedIteratorType,
+                allocator,
+                subtree_size - midpoint - 1,
+                iterator_ref,
+            );
+
+            node.setChild(.left, left_subtree);
+            if (left_subtree) |ls| ls.setParent(node);
+
+            node.setChild(.right, right_subtree);
+            if (right_subtree) |rs| rs.setParent(node);
+
+            return node;
+        }
+
+        fn colorSubtree(
+            subtree_root: ?*Node,
+            black_depth: usize,
+        ) void {
+            if (subtree_root) |root| {
+                if (black_depth > 0) {
+                    root.setColor(.black);
+                } else {
+                    root.setColor(.red);
+                }
+
+                const subtree_black_depth = if (black_depth == 0) 0 else black_depth - 1;
+
+                colorSubtree(root.getChild(.left), subtree_black_depth);
+                colorSubtree(root.getChild(.right), subtree_black_depth);
+            }
+        }
+
+        pub fn initFromSortedReference(
+            IteratorType: type,
+            allocator: Allocator,
+            size: usize,
+            iterator_ref: *IteratorType,
+        ) !Self {
+            const tree_root: ?*Node = try initSubtreeRec(
+                IteratorType,
+                allocator,
+                size,
+                iterator_ref,
+            );
+
+            // the leftmost child is the deepest, so let's compute the depth
+            // all leaves of the tree are depth `depth` or `depth-1`
+            const black_depth: usize = calculateOptimalBlackDepth(size);
+            colorSubtree(tree_root, black_depth);
+
+            return .{
+                .root = tree_root,
+                .size = size,
+            };
+        }
+
+        /// Initialises a red black tree from a sorted list
+        pub fn initFromSorted(
+            IteratorType: type,
+            allocator: Allocator,
+            size: usize,
+            in_iterator: IteratorType,
+        ) !Self {
+            var iterator = in_iterator;
+            return initFromSortedReference(
+                IteratorType,
+                allocator,
+                size,
+                &iterator,
+            );
+        }
+
+        const KVSliceIterator = struct {
+            data: []const KV,
+            pos: usize = 0,
+
+            pub fn next(self: *KVSliceIterator) ?KV {
+                if (self.pos == self.data.len) {
+                    return null;
+                } else {
+                    const retval = self.data[self.pos];
+                    self.pos += 1;
+                    return retval;
+                }
+            }
+        };
+        pub fn initFromSortedKVSlice(
+            allocator: Allocator,
+            slice: []const KV,
+        ) !Self {
+            return initFromSorted(
+                KVSliceIterator,
+                allocator,
+                slice.len,
+                KVSliceIterator{
+                    .data = slice,
+                },
+            );
+        }
+
+        const SliceIterator = struct {
+            data: []const K,
+            pos: usize = 0,
+
+            pub fn next(self: *SliceIterator) ?KV {
+                if (self.pos == self.data.len) {
+                    return null;
+                } else {
+                    const retval = self.data[self.pos];
+                    self.pos += 1;
+                    return .{
+                        .key = retval,
+                        .value = undefined,
+                    };
+                }
+            }
+        };
+        pub fn initFromSortedSlice(
+            allocator: Allocator,
+            slice: []const K,
+        ) !Self {
+            return initFromSorted(
+                SliceIterator,
+                allocator,
+                slice.len,
+                SliceIterator{
+                    .data = slice,
+                },
+            );
         }
 
         pub const ClobberOptions = enum {
@@ -963,9 +1209,9 @@ pub fn RBTreeUnmanaged(
             return result;
         }
 
-        pub fn deinit(self: *Self, allocator: Allocator) void {
+        fn deinitSubtree(allocator: Allocator, subtree_root: ?*Node) void {
             // this removes all nodes in in-order succession
-            var current_node = self.root;
+            var current_node = subtree_root;
             while (current_node) |node| {
                 // check if this node has any subtrees which we should remove
                 if (node.left) |left| {
@@ -984,7 +1230,10 @@ pub fn RBTreeUnmanaged(
                     allocator.destroy(node);
                 }
             }
+        }
 
+        pub fn deinit(self: *Self, allocator: Allocator) void {
+            deinitSubtree(allocator, self.root);
             self.* = Self.init();
         }
 
