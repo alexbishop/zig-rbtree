@@ -91,29 +91,29 @@ pub fn RBTree(
             };
         }
 
-        // Constructs a red-black tree from a sorted list
-        //
-        // Arguments:
-        //  * `SortedKVIterator`
-        //      must either be the type of an iterator which returns value
-        //      of type `KV` or the type of a pointer to such an object
-        //  * `allocator`
-        //      the allocator to use when constructing the element
-        //  * `ctx`
-        //      the context used to initialise the red-black tree
-        //  * `size`
-        //      the number of elements to read from `iterator`
-        //  * `iterator`
-        //      an iterator to key-value pairs which are in sorted order.
-        //
-        //  The purpose of this method is to provide a way of initialising a
-        //  red-black tree from a sorted list without the need for swaps, or
-        //  recolours.
-        //
-        //  **Note:**
-        //  unlike most other methods in this library, this initialisation
-        //  method is implemented using recursion. (As one would expect, the
-        //  total required length of the stack is proportial to the log of `size`.)
+        /// Constructs a red-black tree from a sorted list
+        ///
+        /// Arguments:
+        ///  * `SortedKVIterator`
+        ///      must either be the type of an iterator which returns value
+        ///      of type `KV` or the type of a pointer to such an object
+        ///  * `allocator`
+        ///      the allocator to use when constructing the element
+        ///  * `ctx`
+        ///      the context used to initialise the red-black tree
+        ///  * `size`
+        ///      the number of elements to read from `iterator`
+        ///  * `iterator`
+        ///      an iterator to key-value pairs which are in sorted order.
+        ///
+        ///  The purpose of this method is to provide a way of initialising a
+        ///  red-black tree from a sorted list without the need for swaps, or
+        ///  recolours.
+        ///
+        ///  **Note:**
+        ///  unlike most other methods in this library, this initialisation
+        ///  method is implemented using recursion. (As one would expect, the
+        ///  total required length of the stack is proportial to the log of `size`.)
         pub fn initFromSortedKVIterator(
             SortedKVIterator: type,
             allocator: Allocator,
