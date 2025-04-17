@@ -114,20 +114,13 @@ pub fn RBTreeUnmanaged(
             if (subtree_size == 0) return 0;
             if (subtree_size == 1) return 1;
 
+            const maximum_tree_size: usize = @as(usize, std.math.maxInt(usize)) >> @truncate(@clz(subtree_size));
+
             const bit_count = @typeInfo(usize).int.bits - @clz(subtree_size);
-            const test1: usize = shiftAdd(bit_count);
-            if (subtree_size == test1) {
+            if (subtree_size == maximum_tree_size) {
                 return bit_count;
             } else {
                 return bit_count - 1;
-            }
-        }
-
-        fn shiftAdd(num: usize) usize {
-            if (num >= @typeInfo(usize).int.bits) {
-                return std.math.maxInt(usize);
-            } else {
-                return (@as(usize, 1) <<| num) - 1;
             }
         }
 
@@ -159,32 +152,18 @@ pub fn RBTreeUnmanaged(
                 else => {},
             }
 
-            // a perfect binary tree of depth n will have exactly 0b11111...111 nodes,
-            // that id the number of 1's in the binary expansion is exactly n
-            // For example,
-            //      depth 1 => 0b1 = 1 node
-            //      depth 2 => 0b11 = 3 nodes (the root, plus a left and right node)
-            //
-            // We begin by calculating the depth of the largest perfect binary tree
-            // that can be contained as a subtree, that is, the largest number of the
-            // form 0b1111...11 which compares less than or equal to `subtree_size`
+            // notice that we need to truncate in the following
+            // for example, on a 64-bit system, this would be a truncation from u7 to u6.
+            // This is valid as we only ever need the extra bit when `subtree_size` is all zeros which is
+            // covered by the above base cases
+            const maximum_tree_size: usize = @as(usize, std.math.maxInt(usize)) >> @truncate(@clz(subtree_size));
+            const left_subtree_max_size: usize = maximum_tree_size >> 1;
+            const right_subtree_min_size: usize = maximum_tree_size >> 2;
 
-            const bit_count = @typeInfo(usize).int.bits - @clz(subtree_size);
-            {
-                const test1: usize = shiftAdd(bit_count);
-                if (subtree_size == test1) {
-                    return shiftAdd(bit_count - 1);
-                }
-            }
-
-            const left_perfect_subtree_size: usize = shiftAdd(bit_count - 1);
-            const right_perfect_subtree_size: usize = shiftAdd(bit_count - 2);
-            if (left_perfect_subtree_size + right_perfect_subtree_size + 1 <= subtree_size) {
-                // the left subtree cannot is perfect
-                return left_perfect_subtree_size;
+            if (subtree_size >= left_subtree_max_size + right_subtree_min_size + 1) {
+                return left_subtree_max_size;
             } else {
-                // the right subtree is perfect, so the extra stuff goes to the left subtree
-                return subtree_size - 1 - right_perfect_subtree_size;
+                return subtree_size - 1 - right_subtree_min_size;
             }
         }
 
