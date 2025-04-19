@@ -1,13 +1,24 @@
-//! This file contains helper methods
+//! Provides a default comparison function
 const std = @import("std");
 const Allocator = std.mem.Allocator;
 const Order = std.math.Order;
 
 /// Compares two elements of the same type.
 ///
-/// This function is intended as a generalisation of `std.meta.eql`.
-///
-/// This function recursively compares the two types, but does not follow pointers.
+/// Recursively compares the two variables.
+/// 
+/// Note this function
+///   * cannot compare variables of type
+///     - untagged unions,
+///     - opaques,
+///     - functions,
+///     - frames,
+///     - anytype, or
+///     - anyframe;
+///   * does not follow pointers with the exception of slices; and
+///   * will use `@typeName`, `@errorName` and `@tagName` where appropriate,
+///     and thus will require these pieces fo information to be stored in the
+///     compiled program if used.
 pub fn order(a: anytype, b: @TypeOf(a)) Order {
     const T = @TypeOf(a);
 
