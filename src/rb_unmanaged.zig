@@ -9,6 +9,8 @@ const Impl = @import("./rb_implementation.zig");
 pub const Options = Impl.Options;
 pub const Callbacks = Impl.Callbacks;
 
+/// A unique type which is used to tag types which were created using
+/// the `RBTreeUnmanaged` function.
 const RBTreeUnmanagedTag = opaque {};
 
 /// Returns `true` if the given type was obtained from the function `RBTreeUnmanaged`.
@@ -35,20 +37,22 @@ pub fn isRBTreeUnmanaged(comptime T: type) bool {
 ///
 /// Note that the allocator and context are not managed, that is, they must be passed
 /// to the relevant method calls every time.
-///
-/// Arguments:
-///  * `K`: the type used for keys in the red-black tree
-///  * `V`: the type used for values in the red-black tree
-///  * `Context`: the type of the context which can be passed to the comparison function of the red-black tree
-///  * `order`: the comparison function to use for the red-black tree
-///  * `options`: additional options which change how the red-black tree operates
-///  * `augmented_callbacks`: callbacks to use for the augmented red-black tree
 pub fn RBTreeUnmanaged(
+    /// the type used for keys in the red-black tree
     comptime K: type,
+    /// The type used for values in the red-black tree
     comptime V: type,
+    /// The type of the context which can be passed to the
+    /// comparison function of the red-black tree
     comptime Context: type,
+    /// The comparison function to use for the red-black tree
+    ///
+    /// Note that if your desired order function does not support a context,
+    /// then you can fix this with the `addVoidContextToOrder` function.
     comptime order: fn (ctx: Context, lhs: K, rhs: K) Order,
+    /// Some additional options used to construct the tree
     comptime options: Options,
+    /// Any callbacks which are used to provide any augmentation
     comptime augmented_callbacks: Callbacks(
         K,
         V,
@@ -110,6 +114,12 @@ pub fn RBTreeUnmanaged(
             }
         }
 
+        /// Used in the implementation of `initSubtreeRec`
+        ///
+        /// Suppose we are constructing a left leaning binary search tree
+        /// of minimal depth which contains exactly `subtree_size` many
+        /// nodes. Then, this function determines the size of the left
+        /// subtree of the root.
         fn calculateLeftSubtreeSize(subtree_size: usize) usize {
             if (subtree_size <= 1) return 0;
 
@@ -130,6 +140,7 @@ pub fn RBTreeUnmanaged(
             }
         }
 
+        /// Initiates a subtree with the given values
         fn initSubtreeRec(
             SortedKVIterator_Ptr: type,
             allocator: Allocator,

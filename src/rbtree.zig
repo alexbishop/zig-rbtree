@@ -28,13 +28,16 @@
 //!
 //!   1. Multiple layers of abstraction for different use cases
 //!   2. Non-recursive implementation of search, insert and delete *(so we don't blow up your stack)*
-//!   3. Takes order functions which have a context so you can change ordering at runtime
-//!   4. Possibility to make an augmented red-black tree with arbitrary additional data
+//!   3. Create a red-black tree from a sorted list in `O(1)` time without the need for rotates, recolours or swaps
+//!      *(note that this feature is implemented using recursion)*
+//!   4. Takes order functions which take a context argumanet so you can change order behaviour at runtime
+//!      *(this feature is useful if your order depends on some user input)*
+//!   5. Possibility to make an augmented red-black tree with arbitrary additional data
 //!      in nodes
-//!   5. Optionally maintain subtree counts
+//!   6. Optional: maintain subtree sizes
 //!      *(turned off by default but easy to enable in the `Options` passed
 //!      to `RBTreeImplementation`, `RBTreeUnmanaged` or `RBTree`)*
-//!   6. Optionally save space by keeping the colour of the nodes in the parent pointer
+//!   7. Optional: save space by keeping the colour of the nodes in the lowest order bit of the parent pointer
 //!      *(turned on by default but easy to disable in the `Options` passed
 //!      to `RBTreeImplementation`, `RBTreeUnmanaged` or `RBTree`)*
 //!
@@ -44,20 +47,18 @@
 //! [Wikipedia article](https://en.wikipedia.org/wiki/Red%E2%80%93black_tree).
 //! The style of comments used in the implementation of `RBTreeImplementation`
 //! is inspired by the comments in `rbtree.c` from the Linux kernel, however,
-//! no code, comments, or design was copied from the Linux kernel: all code in
-//! this library (with the exception of some test code as stated in the README)
-//! was written from scratch.
+//! no code, comments, or design was copied from the Linux kernel.
 //!
 //! The implementation of red-black trees is broken into 3 layers:
 //!
 //!  1. `RBTreeImplementation`:
 //!
 //!     Provides a minimum implementation of the basic methods required
-//!     to implement a red-black tree, and does not allocate any memory.
+//!     for a red-black tree, and does not allocate any memory.
 //!     Using this interface requires some boilerplate code.
 //!
 //!     This interface is provided to allow the programmer to have complete control
-//!     over when memory is allocated/reused/dealocated and to enable optimisations that
+//!     over when memory is allocated/reused/deallocated and to enable optimisations that
 //!     would otherwise not be possible. (For example, if you want to move nodes
 //!     between two red-black trees, this interface would allow you to do so
 //!     without the need to reallocate.)
@@ -207,7 +208,7 @@ pub fn getTreeType(comptime Tree: type) ?TreeTag {
 /// if you are writting a tool which needs to sort polynomial terms based on arbitrary
 /// term orderings (which may be required in certain scientific programming situations).
 ///
-/// It is not always the case that order functions are written with the consideration in mind.
+/// It is not always the case that order functions are written with this consideration in mind.
 /// In fact, it is often the case that an order function does not need a context at all.
 /// This is a helper function to assist in this situation.
 pub fn addVoidContextToOrder(

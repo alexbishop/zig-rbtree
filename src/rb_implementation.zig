@@ -9,20 +9,23 @@ const RBNode = @import("./rb_node.zig");
 
 pub const Options = RBNode.Options;
 
-/// A container for the callbacks of an augmented red-black tree.
+/// Callbacks which can be used to implement an augmented red-black tree.
 ///
-/// Arguments:
-///  * `K`: is the key type of the red-black tree.
-///  * `V`: is the value type of the red-black tree.
-///  * `Context`: is the type of the context which should be passed to the compare function.
-///  * `options`: is the options which were used to create the red-black tree
+/// For an example of these callbacks, see `example/augmented_example.zig`
+/// in the source for this library which you can find
+/// [here](https://github.com/alexbishop/zig-rbtree/blob/main/example/augmented_example.zig).
 pub fn Callbacks(
+    /// The type of keys used in this red-black tree
     comptime K: type,
+    /// The type of values used in this re-black tree
     comptime V: type,
+    /// The type of the context which is passed to the sort function
     comptime Context: type,
+    /// The options that were used to construct the red-black tree
     comptime options: Options,
 ) type {
     return struct {
+        /// The type of a node in the red-black tree associated to the callbacks
         const Node = RBNode.Node(
             K,
             V,
@@ -40,18 +43,11 @@ pub fn Callbacks(
         ///
         /// Note that swaps will only take place when one node
         /// is an ancestor of another. After the swap,
-        ///
-        ///     `deep_unordered_node`
-        ///         will be the node farther away from the root.
-        ///         Note that this node may not be in its correct order
-        ///
-        ///     `shallow_node`
-        ///         will be the node closer to the root.
-        ///         This node is always in its correct order
-        ///
         afterSwap: ?fn (
             ctx: Context,
+            /// The node that is farther away from the root after thw swap
             deep_unordered_node: *Node,
+            /// The node that is closer to the root after the swap
             shallow_node: *Node,
         ) void = null,
         /// This function will be run after a new node has been
@@ -82,20 +78,21 @@ pub fn Callbacks(
 }
 
 /// Basic functions for the implementation of a red-black tree.
-///
-/// Arguments:
-///  * `K`: the type used for keys in the red-black tree
-///  * `V`: the type used for values in the red-black tree
-///  * `Context`: the type of the context which can be passed to the comparison function of the red-black tree
-///  * `order`: the comparison function to use for the red-black tree
-///  * `options`: additional options which change how the red-black tree operates
-///  * `augmented_callbacks`: callbacks to use for the augmented red-black tree
 pub fn RBTreeImplementation(
+    /// The type used for the keys of the red-black tree
     comptime K: type,
+    /// The type used for the values of the red-black tree
     comptime V: type,
+    /// The type used for the context which is passed to the order function
     comptime Context: type,
+    /// The order by which to sort the keys
+    ///
+    /// Note that if your desired order function does not support a context,
+    /// then you can fix this with the `addVoidContextToOrder` function.
     comptime order: fn (ctx: Context, lhs: K, rhs: K) Order,
+    /// Additional options used to construct the tree
     comptime options: Options,
+    /// The callback functions which implement any augmentation
     comptime augmented_callbacks: Callbacks(
         K,
         V,
@@ -104,14 +101,21 @@ pub fn RBTreeImplementation(
     ),
 ) type {
     return struct {
+        /// Used to represent the colour of a node in the tree
         pub const NodeColor = RBNode.NodeColor;
+        /// Used to represent left or right, in reference to the left and right subtrees
         pub const Direction = RBNode.Direction;
+        /// The type of the nodes in the tree
         pub const Node = RBNode.Node(
             K,
             V,
             options,
         );
 
+        /// Used to specify the location of a `null` in the tree.
+        ///
+        /// That is, this type represent an empty location in the tree which is the
+        /// `direction` subtree of node `parent`
         pub const Location = struct {
             parent: *Node,
             direction: Direction,
@@ -120,18 +124,26 @@ pub fn RBTreeImplementation(
             node,
             location,
         };
+        /// The return type of `findNodeOrLocation`
         pub const FindNodeOrLocationResult = union(FindNodeOrLocationResultTag) {
             node: *Node,
             location: Location,
         };
 
-        /// Either finds a value or an insertion location in the tree.
+        /// Either finds a value in the tree or an insertion location in the tree.
         ///
         /// If the given key lies in the tree with the given root, then the corresponding node
         /// is returned, otherwise, the location where the key should be inserted is returned.
         pub fn findNodeOrLocation(
+            /// The root of the tree
+            ///
+            /// Note that this root cannot be null as it would make no sense to call this function
+            /// for an empty function. That is, there would be no possible return type for such an
+            /// empty tree.
             root: *Node,
+            /// The context to pass to the order function when performing comparisons
             ctx: Context,
+            /// The key to search for in the tree
             key: K,
         ) FindNodeOrLocationResult {
             var node = root;
@@ -180,7 +192,15 @@ pub fn RBTreeImplementation(
         ///
         /// Notice that we require the context as it is passed to any callbacks.
         pub fn makeRoot(
+            /// The place to store the new root.
+            ///
+            /// This should be `null` before calling this function
             root_ref: *?*Node,
+            /// The context that would be provided to the sort function
+            ///
+            /// This value is required as it is passed to the `afterLink` callback function
+            /// if it is provided. Thus, if you have not provided any augmentation functions
+            /// for this tree, then this can be set to `undefined`.
             ctx: Context,
             new_node: *Node,
         ) void {
@@ -211,7 +231,7 @@ pub fn RBTreeImplementation(
         /// This function assumes that `location` described a null child of a node
         /// in the tree with the given root.
         ///
-        /// Notice that `root_red` is of type `**Node` and not `*?*Node` like in
+        /// Notice that `root_ref` is of type `**Node` and not `*?*Node` like in
         /// `makeRoot` or `removeNode`. Thus, in order to insert into a tree, one
         /// must perform the following.
         ///
@@ -229,9 +249,23 @@ pub fn RBTreeImplementation(
         /// }
         /// ```
         pub fn insertNode(
+            /// A reference to the root of the tree
+            ///
+            /// Note that the root cannot be `null`. If the root is `null`, then you should
+            /// instead call the function `makeRoot`.
             root_ref: **Node,
+            /// The context to pass to the order function
+            ///
+            /// Note that this value if only required as it is passed to the callback functions.
+            /// Thus, if you are not using any augmentation, then you can set this value to
+            /// be `undefined`.
             ctx: Context,
+            /// The new node to insert into the red-black tree
             new_node: *Node,
+            /// The location to insert the new node into the tree which maintains the
+            /// sorted order of the tree.
+            ///
+            /// Such a location can be obtained from the function `findNodeOrLocation`
             location: Location,
         ) void {
             // set all the relevant fields of the node and its parent
@@ -453,6 +487,8 @@ pub fn RBTreeImplementation(
         ///
         /// This function assumes that `node1 != node2` and that both of these nodes belong
         /// to the tree with the given root.
+        ///
+        /// Note: this function does not call any of the callbacks.
         pub fn swapNodePosition(
             root_ref: **Node,
             node1: *Node,
@@ -625,10 +661,12 @@ pub fn RBTreeImplementation(
         /// Removes a node and rebalances the red-black tree.
         ///
         /// This function assumes that node belongs to the tree given by `root_ref_opt`.
-        ///
-        /// **Note:** This function requires the context as it may invoke a callback.
         pub fn removeNode(
             root_ref_opt: *?*Node,
+            /// The context that would be provided to the order function.
+            ///
+            /// Note that this value is only required as it is provided to the callback functions.
+            /// Thus, for a tree without any augmentation, this value can be set to `undefined`.
             ctx: Context,
             node: *Node,
         ) void {
