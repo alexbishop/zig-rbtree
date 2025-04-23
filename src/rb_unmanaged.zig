@@ -150,67 +150,143 @@ pub fn RBTreeUnmanaged(
             ReachedEndOfIterator,
         };
 
-        /// Initiates a subtree with the given values see `initFromSortedKVIterator`
-        fn initSubtreeRec(
-            SortedKVIterator_Ptr: type,
-            allocator: Allocator,
-            subtree_size: usize,
-            iterator_ref: SortedKVIterator_Ptr,
-            subtree_root_color: NodeColor,
-        ) InitFromSortedError!?*Node {
-            if (subtree_size == 0) return null;
+        fn clearLinkedList(head_node: *Node) void {
+            var current: ?*Node = head_node;
+            while (current) |cur| {
+                const next: ?*Node = cur.right;
+                cur.right = null;
+                current = next;
+            }
+        }
 
-            const next_subtree_root_color: NodeColor = switch (subtree_root_color) {
+        fn invertColor(color: NodeColor) NodeColor {
+            return switch (color) {
                 .red => .black,
                 .black => .red,
             };
+        }
 
-            const midpoint = calculateLeftSubtreeSize(subtree_size);
+        fn initTreeFromIteratorRef(
+            SortedKVIterator_Ptr: type,
+            allocator: Allocator,
+            size: usize,
+            iterator: SortedKVIterator_Ptr,
+        ) InitFromSortedError!?*Node {
+            if (size == 0) return null;
 
-            // read the left subtree
+            var current_level_color: NodeColor = brk: {
+                // the depth of the tree
+                const depth: usize = @typeInfo(usize).int.bits - @clz(size);
+                // we want the leaves to be red, so we set the color as follows
+                break :brk switch (depth % 2) {
+                    0 => .black,
+                    1 => .red,
+                    else => unreachable,
+                };
+            };
 
-            const left_subtree: ?*Node = try initSubtreeRec(
-                SortedKVIterator_Ptr,
-                allocator,
-                midpoint,
-                iterator_ref,
-                next_subtree_root_color,
-            );
-            errdefer deinitSubtree(allocator, left_subtree);
+            const root: *Node = try allocator.create(Node);
+            root.* = Node.init(.{ .color = current_level_color });
+            var head_of_list: *Node = root;
 
-            // read the subtree root
+            errdefer {
+                clearLinkedList(head_of_list);
+                deinitSubtree(allocator, root);
+            }
 
-            const node: *Node = try allocator.create(Node);
-            errdefer allocator.destroy(node);
+            // construct the levels of the tree one by one
+            {
+                var remaining_size = size - 1;
 
-            const kv: KV =
-                iterator_ref.next() orelse
-                return InitFromSortedError.ReachedEndOfIterator;
+                outer: while (remaining_size > 0) {
+                    current_level_color = invertColor(current_level_color);
 
-            node.* = Node.init(.{
-                .subtree_size = if (options.store_subtree_sizes) subtree_size else void{},
-                .key = kv.key,
-                .value = kv.value,
-                .color = subtree_root_color,
-            });
+                    var previous_list_pos: ?*Node = null;
+                    var current_list_pos: ?*Node = head_of_list;
 
-            // read the right subtree
+                    var is_first_of_level: bool = true;
 
-            const right_subtree: ?*Node = try initSubtreeRec(
-                SortedKVIterator_Ptr,
-                allocator,
-                subtree_size - midpoint - 1,
-                iterator_ref,
-                next_subtree_root_color,
-            );
+                    while (current_list_pos) |cur| {
+                        const next_list_pos = cur.right;
 
-            node.setChild(.left, left_subtree);
-            if (left_subtree) |ls| ls.setParent(node);
+                        if (remaining_size == 0) {
+                            break :outer;
+                        }
 
-            node.setChild(.right, right_subtree);
-            if (right_subtree) |rs| rs.setParent(node);
+                        if (remaining_size == 1) {
+                            const new_node: *Node = try allocator.create(Node);
+                            if (is_first_of_level) head_of_list = new_node;
+                            new_node.* = Node.init(.{
+                                .parent = cur,
+                                .color = current_level_color,
+                            });
+                            // add this node to its new position
+                            if (previous_list_pos) |prev| {
+                                prev.right = new_node;
+                            }
+                            new_node.right = next_list_pos;
+                            cur.left = new_node;
+                            cur.right = null;
+                            break :outer;
+                        }
 
-            return node;
+                        // add the left node
+                        {
+                            const new_left_node: *Node = try allocator.create(Node);
+                            if (is_first_of_level) head_of_list = new_left_node;
+                            new_left_node.* = Node.init(.{
+                                .parent = cur,
+                                .color = current_level_color,
+                            });
+                            if (previous_list_pos) |prev| {
+                                prev.right = new_left_node;
+                            }
+                            new_left_node.right = next_list_pos;
+                            cur.left = new_left_node;
+                            cur.right = null;
+                            previous_list_pos = new_left_node;
+                        }
+
+                        // add the right node
+                        {
+                            const new_right_node: *Node = try allocator.create(Node);
+                            new_right_node.* = Node.init(.{
+                                .parent = cur,
+                                .color = current_level_color,
+                            });
+                            if (previous_list_pos) |prev| {
+                                prev.right = new_right_node;
+                            }
+                            new_right_node.right = next_list_pos;
+                            cur.right = new_right_node;
+                            previous_list_pos = new_right_node;
+                        }
+
+                        remaining_size -= 2;
+                        is_first_of_level = false;
+                        current_list_pos = next_list_pos;
+                    }
+                }
+            }
+
+            // remove the linked list
+            clearLinkedList(head_of_list);
+
+            // fill in the list
+            {
+                var current_tree_pos: ?*Node = head_of_list;
+                while (current_tree_pos) |node| {
+                    if (iterator.next()) |kv| {
+                        node.key = kv.key;
+                        node.value = kv.value;
+                        current_tree_pos = node.next();
+                    } else {
+                        return InitFromSortedError.ReachedEndOfIterator;
+                    }
+                }
+            }
+
+            return root;
         }
 
         /// Constructs a red-black tree from a sorted list
@@ -298,7 +374,6 @@ pub fn RBTreeUnmanaged(
                     },
                 }
             }
-            const tree_depth: usize = @typeInfo(usize).int.bits - @clz(size);
             // we want to make sure that the deepest nodes are colored red,
             // we color our nodes by alternating between black and red
             // Thus if tree_depth is even, we start with black, and if
@@ -312,18 +387,13 @@ pub fn RBTreeUnmanaged(
             // We need to make a copy so that we can modify it in this case
             var iter_cpy = iterator;
 
-            const tree_root: ?*Node = try initSubtreeRec(
+            const tree_root: ?*Node = try initTreeFromIteratorRef(
                 RefType,
                 allocator,
                 size,
                 switch (@typeInfo(SortedKVIterator)) {
                     .@"struct" => &iter_cpy,
                     else => iter_cpy,
-                },
-                switch (tree_depth % 2) {
-                    0 => .black,
-                    1 => .red,
-                    else => unreachable,
                 },
             );
 
@@ -347,19 +417,10 @@ pub fn RBTreeUnmanaged(
                 }
             }
         };
-        /// Initialises a red-black tree from a slice of sorted keys.
+        /// Initialises a red-black tree from a slice of sorted `KV` pairs.
         ///
-        /// Note that values associated to each node in the returned tree
-        /// will be initialised from `undefined`. This function is perfect
-        /// if the value type of your tree is `void`. For example, if your
-        /// tree was constructed from the type
-        ///
-        /// ```zig
-        /// const Tree = DefaultRBTreeUnmanaged(usize, void);
-        /// ```
-        ///
-        /// Thus, this function is well-suited for the cases where your
-        /// red-black tree represents a set.
+        /// Note that the slice given as input must be sorted with respect to
+        /// the relevant order.
         pub fn initFromSortedKVSlice(
             allocator: Allocator,
             slice: []const KV,
@@ -397,10 +458,19 @@ pub fn RBTreeUnmanaged(
                 }
             }
         };
-        /// Initialises a red-black tree from a slice of sorted `KV` pairs.
+        /// Initialises a red-black tree from a slice of sorted keys.
         ///
-        /// Note that the slice given as input must be sorted with respect to
-        /// the relevant order.
+        /// Note that values associated to each node in the returned tree
+        /// will be initialised from `undefined`. This function is perfect
+        /// if the value type of your tree is `void`. For example, if your
+        /// tree was constructed from the type
+        ///
+        /// ```zig
+        /// const Tree = DefaultRBTreeUnmanaged(usize, void);
+        /// ```
+        ///
+        /// Thus, this function is well-suited for the cases where your
+        /// red-black tree represents a set.
         pub fn initFromSortedSlice(
             allocator: Allocator,
             slice: []const K,

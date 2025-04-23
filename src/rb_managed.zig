@@ -5,8 +5,14 @@ const Order = std.math.Order;
 
 const unmanaged = @import("./rb_unmanaged.zig");
 
+/// A unique type which is used to tag types which were created using
+/// the `RBTree` function.
 const RBTreeTag = opaque {};
 
+/// Returns `true` if the given type was obtained from the function `RBTree`.
+///
+/// Notice that if it is a red-black tree, then the arguments which were passed to
+/// `RBTree` can be ontained as `T.args`.
 pub fn isRBTree(comptime T: type) bool {
     switch (@typeInfo(T)) {
         .@"struct" => |_| {
@@ -24,20 +30,22 @@ pub fn isRBTree(comptime T: type) bool {
 }
 
 /// A red-black tree which manages its own allocator and context.
-///
-/// Arguments:
-///  * `K`: the type used for keys in the red-black tree
-///  * `V`: the type used for values in the red-black tree
-///  * `Context`: the type of the context which can be passed to the comparison function of the red-black tree
-///  * `order`: the comparison function to use for the red-black tree
-///  * `options`: additional options which change how the red-black tree operates
-///  * `augmented_callbacks`: callbacks to use for the augmented red-black tree
 pub fn RBTree(
+    /// the type used for keys in the red-black tree
     comptime K: type,
+    /// The type used for values in the red-black tree
     comptime V: type,
+    /// The type of the context which can be passed to the
+    /// comparison function of the red-black tree
     comptime Context: type,
+    /// The comparison function to use for the red-black tree
+    ///
+    /// Note that if your desired order function does not support a context,
+    /// then you can fix this with the `addVoidContextToOrder` function.
     comptime order: fn (ctx: Context, lhs: K, rhs: K) Order,
+    /// Some additional options used to construct the tree
     comptime options: unmanaged.Options,
+    /// Any callbacks which are used to provide any augmentation
     comptime augmented_callbacks: unmanaged.Callbacks(
         K,
         V,
@@ -48,7 +56,10 @@ pub fn RBTree(
     return struct {
         const Self = @This();
 
+        /// We tag the struct so that we can later identify it as an unmanaged tree.
+        /// This is important for metaprogramming.
         const tag = RBTreeTag;
+        /// The arguments which were passed when creating this struct
         pub const args = .{
             .K = K,
             .V = V,
@@ -58,7 +69,8 @@ pub fn RBTree(
             .augmented_callbacks = augmented_callbacks,
         };
 
-        pub const ManagedType = unmanaged.RBTreeUnmanaged(
+        /// The Unamanged type that we are wrapping
+        pub const UnmanagedType = unmanaged.RBTreeUnmanaged(
             K,
             V,
             Context,
@@ -67,64 +79,103 @@ pub fn RBTree(
             augmented_callbacks,
         );
 
-        pub const ClobberOptions = ManagedType.ClobberOptions;
-        pub const InsertResult = ManagedType.InsertResult;
-        pub const KV = ManagedType.KV;
-        pub const Node = ManagedType.Node;
-        pub const NodeColor = ManagedType.NodeColor;
-        pub const Direction = ManagedType.Direction;
-        pub const Entry = ManagedType.Entry;
-        pub const GetOrPutResult = ManagedType.GetOrPutResult;
+        pub const ClobberOptions = UnmanagedType.ClobberOptions;
+        pub const InsertResult = UnmanagedType.InsertResult;
+        pub const KV = UnmanagedType.KV;
+        pub const Node = UnmanagedType.Node;
+        pub const NodeColor = UnmanagedType.NodeColor;
+        pub const Direction = UnmanagedType.Direction;
+        pub const Entry = UnmanagedType.Entry;
+        pub const GetOrPutResult = UnmanagedType.GetOrPutResult;
 
-        managed: ManagedType,
+        /// An instance of an unmanaged red-black tree which we are
+        /// now managing in this type
+        managed: UnmanagedType,
+        /// The context that will be passed to the `order` function
         ctx: Context,
+        /// The allocator that is used to create and distory nodes
         allocator: Allocator,
 
+        /// initialises an empty red-black tree
         pub fn init(
             allocator: Allocator,
             ctx: Context,
         ) Self {
             return Self{
-                .managed = ManagedType.init(),
+                .managed = UnmanagedType.init(),
                 .ctx = ctx,
                 .allocator = allocator,
             };
         }
 
-        pub const InitFromSortedError = ManagedType.InitFromSortedError;
+        /// The error union used for `initFromSortedKVIterator`
+        pub const InitFromSortedError = UnmanagedType.InitFromSortedError;
 
         /// Constructs a red-black tree from a sorted list
         ///
-        /// Arguments:
-        ///  * `SortedKVIterator`
-        ///      must either be the type of an iterator which returns value
-        ///      of type `KV` or the type of a pointer to such an object
-        ///  * `allocator`
-        ///      the allocator to use when constructing the element
-        ///  * `ctx`
-        ///      the context used to initialise the red-black tree
-        ///  * `size`
-        ///      the number of elements to read from `iterator`
-        ///  * `iterator`
-        ///      an iterator to key-value pairs which are in sorted order.
+        /// The purpose of this method is to provide a way of initialising a
+        /// red-black tree from a sorted list without the need for swaps, or
+        /// recolours.
         ///
-        ///  The purpose of this method is to provide a way of initialising a
-        ///  red-black tree from a sorted list without the need for swaps, or
-        ///  recolours.
+        /// Note that this function returns an error
+        /// `InitSubtreeFromSortedError.ReachedEndOfIterator` if the provided
+        /// iterator does not have the specified number of entries.
         ///
-        ///  **Note:**
-        ///  unlike most other methods in this library, this initialisation
-        ///  method is implemented using recursion. (As one would expect, the
-        ///  total required length of the stack is proportial to the log of `size`.)
+        /// **Note:**
+        /// unlike most other methods in this library, this initialisation
+        /// method is implemented using recursion. (As one would expect, the
+        /// total required length of the stack is proportial to the log of `size`.)
         pub fn initFromSortedKVIterator(
+            /// The type of the iterator from which to ontain the sorted values
+            ///
+            /// This can either be the type of a `KV` iterator, or the type of a pointer
+            /// to such an iterator.
+            ///
+            /// For example, suppose we have the following code.
+            ///
+            /// ```zig
+            /// const KVSliceIterator = struct {
+            ///     data: []const KV,
+            ///     index: usize = 0,
+            ///
+            ///     pub fn next(self: *KVSliceIterator) ?KV {
+            ///         if (self.index == self.data.len) {
+            ///             return null;
+            ///         } else {
+            ///             const kv = self.data[self.index];
+            ///             self.index += 1;
+            ///             return kv;
+            ///         }
+            ///     }
+            /// };
+            /// ```
+            ///
+            /// Then, `KVSliceIterator` and `*KVSliceIterator` are both valid values for
+            /// the parameter `SortedKVIterator`.
             SortedKVIterator: type,
+            /// The allocator to use to construct nodes in the red-black tree
             allocator: Allocator,
+            /// The context to pass to the `order` function in subsequent modifications
             ctx: Context,
+            /// The number of items to read from the iterator.
+            ///
+            /// This function constructs a sorted binary tree from the first `size` items
+            /// which are obtained by calling `next()` on variable `iterator` as provideed to
+            /// this function
             size: usize,
+            /// An iterator over values of type `KV`
+            ///
+            /// Note that this function assumes that the items are returned from `iterator` in
+            /// sorted order, and that `iterator` contains at least `size` many items.
+            ///
+            /// If the end of the iterator is seen before `size` many items are read, then
+            /// an error of type `InitSubtreeFromSortedError.ReachedEndOfIterator` will
+            /// be returned. Note that cleanup is done before returning an error,
+            /// so you don't have to worry about memory leaks.
             iterator: SortedKVIterator,
         ) InitFromSortedError!Self {
             return Self{
-                .managed = try ManagedType.initFromSortedKVIterator(
+                .managed = try UnmanagedType.initFromSortedKVIterator(
                     SortedKVIterator,
                     allocator,
                     size,
@@ -135,13 +186,17 @@ pub fn RBTree(
             };
         }
 
+        /// Initialises a red-black tree from a slice of sorted `KV` pairs.
+        ///
+        /// Note that the slice given as input must be sorted with respect to
+        /// the relevant order.
         pub fn initFromSortedKVSlice(
             allocator: Allocator,
             ctx: Context,
             slice: []const KV,
         ) Allocator.Error!Self {
             return Self{
-                .managed = try ManagedType.initFromSortedKVSlice(
+                .managed = try UnmanagedType.initFromSortedKVSlice(
                     allocator,
                     slice,
                 ),
@@ -150,13 +205,26 @@ pub fn RBTree(
             };
         }
 
+        /// Initialises a red-black tree from a slice of sorted keys.
+        ///
+        /// Note that values associated to each node in the returned tree
+        /// will be initialised from `undefined`. This function is perfect
+        /// if the value type of your tree is `void`. For example, if your
+        /// tree was constructed from the type
+        ///
+        /// ```zig
+        /// const Tree = DefaultRBTreeUnmanaged(usize, void);
+        /// ```
+        ///
+        /// Thus, this function is well-suited for the cases where your
+        /// red-black tree represents a set.
         pub fn initFromSortedSlice(
             allocator: Allocator,
             ctx: Context,
             slice: []const K,
         ) Allocator.Error!Self {
             return Self{
-                .managed = try ManagedType.initFromSortedSlice(
+                .managed = try UnmanagedType.initFromSortedSlice(
                     allocator,
                     slice,
                 ),
@@ -169,6 +237,8 @@ pub fn RBTree(
             self.managed.deinit(self.allocator);
         }
 
+        /// Gets the size of the red-black tree, that is, the number
+        /// of entries in the tree.
         pub fn count(self: Self) usize {
             return self.managed.count();
         }
@@ -189,6 +259,7 @@ pub fn RBTree(
             };
         }
 
+        /// Clones the red-black tree using the same allocator and Context
         pub fn cloneWithAllocator(
             self: Self,
             new_allocator: Allocator,
@@ -200,6 +271,7 @@ pub fn RBTree(
             };
         }
 
+        /// Clones the red-black tree using the given context.
         pub fn cloneWithContext(
             self: Self,
             new_ctx: Context,
@@ -214,6 +286,7 @@ pub fn RBTree(
             };
         }
 
+        /// Clons the red-black tree with the given context and allocator.
         pub fn cloneWithAllocatorAndContext(
             self: Self,
             new_allocator: Allocator,
@@ -229,6 +302,9 @@ pub fn RBTree(
             };
         }
 
+        /// Removes a node from the tree.
+        ///
+        /// This function assumes that the given node belongs to the tree
         pub fn removeNode(self: *Self, node: *Node) void {
             self.managed.removeNodeWithContext(
                 self.allocator,
@@ -236,10 +312,15 @@ pub fn RBTree(
             );
         }
 
+        /// Returns the smallest entry in the tree
+        ///
+        /// This function can also be seen the ocnstructor for a forward iterator
+        /// over the tree.
         pub fn findMin(self: Self) ?*Node {
             return self.managed.findMin();
         }
 
+        /// Returns the largest entry in the list
         pub fn findMax(self: Self) ?*Node {
             return self.managed.findMax();
         }

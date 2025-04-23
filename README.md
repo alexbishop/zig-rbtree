@@ -4,9 +4,11 @@ An extensible implementation of augmented red-black trees in the Zig programming
 
 **Note:** This package is written for zig version 0.14.0.
 
-For some further documentation, see https://alexbishop.github.io/zig-rbtree
+For full documentation see https://alexbishop.github.io/zig-rbtree
 
 For instructions on how to use this package in your code, see the [Releases page](https://github.com/alexbishop/zig-rbtree/releases).
+
+This library is released under the MIT license (you should have a copy of the LICENSE file with this source code).
 
 ## Tests
 
