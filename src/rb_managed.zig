@@ -205,7 +205,7 @@ pub fn RBTree(
             new_ctx: Context,
         ) Allocator.Error!Self {
             return Self{
-                .managed = try self.managed.cloneWithContext(
+                .managed = try self.managed.cloneWithNewContext(
                     self.allocator,
                     new_ctx,
                 ),
@@ -220,7 +220,7 @@ pub fn RBTree(
             new_ctx: Context,
         ) Allocator.Error!Self {
             return Self{
-                .managed = try self.managed.cloneWithContext(
+                .managed = try self.managed.cloneWithNewContext(
                     new_allocator,
                     new_ctx,
                 ),
@@ -230,7 +230,7 @@ pub fn RBTree(
         }
 
         pub fn removeNode(self: *Self, node: *Node) void {
-            self.managed.removeNodeContext(
+            self.managed.removeNodeWithContext(
                 self.allocator,
                 node,
             );
@@ -248,7 +248,7 @@ pub fn RBTree(
             self: *Self,
             node: *Node,
         ) ?*Node {
-            return self.managed.removeNodeGetNextContext(
+            return self.managed.removeNodeGetNextWithContext(
                 self.allocator,
                 self.ctx,
                 node,
@@ -259,7 +259,7 @@ pub fn RBTree(
             self: *Self,
             node: *Node,
         ) ?*Node {
-            return self.managed.removeNodeGetPrevContext(
+            return self.managed.removeNodeGetPrevWithContext(
                 self.allocator,
                 self.ctx,
                 node,
@@ -274,7 +274,7 @@ pub fn RBTree(
             value: V,
             clobber_option: ClobberOptions,
         ) Allocator.Error!InsertResult {
-            return self.managed.insertContext(
+            return self.managed.insertWithContext(
                 self.allocator,
                 self.ctx,
                 key,
@@ -287,7 +287,7 @@ pub fn RBTree(
             self: Self,
             key: K,
         ) ?*Node {
-            return self.managed.findLowerBoundContext(
+            return self.managed.findLowerBoundWithContext(
                 self.ctx,
                 key,
             );
@@ -297,7 +297,7 @@ pub fn RBTree(
             self: Self,
             key: K,
         ) ?*Node {
-            return self.managed.findUpperBoundContext(
+            return self.managed.findUpperBoundWithContext(
                 self.ctx,
                 key,
             );
@@ -307,7 +307,7 @@ pub fn RBTree(
             self: Self,
             key: K,
         ) ?*Node {
-            return self.managed.findContext(
+            return self.managed.findWithContext(
                 self.ctx,
                 key,
             );
@@ -317,7 +317,7 @@ pub fn RBTree(
             self: Self,
             key: K,
         ) ?Entry {
-            return self.managed.getEntryContext(
+            return self.managed.getEntryWithContext(
                 self.ctx,
                 key,
             );
@@ -327,7 +327,7 @@ pub fn RBTree(
             self: Self,
             key: K,
         ) ?KV {
-            return self.managed.fetchContext(
+            return self.managed.fetchWithContext(
                 self.ctx,
                 key,
             );
@@ -337,7 +337,7 @@ pub fn RBTree(
             self: Self,
             key: K,
         ) ?V {
-            return self.managed.getContext(
+            return self.managed.getWithContext(
                 self.ctx,
                 key,
             );
@@ -347,7 +347,7 @@ pub fn RBTree(
             self: Self,
             key: K,
         ) ?*V {
-            return self.managed.getPtrContext(
+            return self.managed.getPtrWithContext(
                 self.ctx,
                 key,
             );
@@ -357,7 +357,7 @@ pub fn RBTree(
             self: Self,
             key: K,
         ) ?K {
-            return self.managed.getKeyContext(
+            return self.managed.getKeyWithContext(
                 self.ctx,
                 key,
             );
@@ -367,7 +367,7 @@ pub fn RBTree(
             self: Self,
             key: K,
         ) ?*K {
-            return self.managed.getKeyPtrContext(
+            return self.managed.getKeyPtrWithContext(
                 self.ctx,
                 key,
             );
@@ -377,7 +377,7 @@ pub fn RBTree(
             self: Self,
             key: K,
         ) bool {
-            return self.managed.containsContext(
+            return self.managed.containsWithContext(
                 self.ctx,
                 key,
             );
@@ -388,7 +388,7 @@ pub fn RBTree(
             key: K,
             value: V,
         ) GetOrPutResult {
-            return self.managed.getOrPutValueContext(
+            return self.managed.getOrPutValueWithContext(
                 self.allocator,
                 self.ctx,
                 key,
@@ -400,7 +400,7 @@ pub fn RBTree(
             self: *Self,
             key: K,
         ) GetOrPutResult {
-            return self.managed.getOrPutContext(
+            return self.managed.getOrPutWithContext(
                 self.allocator,
                 self.ctx,
                 key,
@@ -412,7 +412,7 @@ pub fn RBTree(
             key: K,
             value: V,
         ) Allocator.Error!?KV {
-            return self.managed.fetchPutContext(
+            return self.managed.fetchPutWithContext(
                 self.allocator,
                 self.ctx,
                 key,
@@ -425,7 +425,7 @@ pub fn RBTree(
             key: K,
             value: V,
         ) Allocator.Error!void {
-            return self.managed.putContext(
+            return self.managed.putWithContext(
                 self.allocator,
                 self.ctx,
                 key,
@@ -437,7 +437,7 @@ pub fn RBTree(
             self: *Self,
             key: K,
         ) Allocator.Error!void {
-            return self.managed.addContext(
+            return self.managed.addWithContext(
                 self.allocator,
                 self.ctx,
                 key,
@@ -449,7 +449,7 @@ pub fn RBTree(
             key: K,
             value: V,
         ) Allocator.Error!void {
-            return self.managed.putNoClobberContext(
+            return self.managed.putNoClobberWithContext(
                 self.allocator,
                 self.ctx,
                 key,
@@ -461,7 +461,7 @@ pub fn RBTree(
             self: *Self,
             key: K,
         ) ?KV {
-            return self.managed.fetchRemoveContext(
+            return self.managed.fetchRemoveWithContext(
                 self.allocator,
                 self.ctx,
                 key,
@@ -472,7 +472,7 @@ pub fn RBTree(
             self: *Self,
             key: K,
         ) bool {
-            return self.managed.removeContext(
+            return self.managed.removeWithContext(
                 self.allocator,
                 self.ctx,
                 key,

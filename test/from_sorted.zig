@@ -48,7 +48,7 @@ fn printTree(node: ?*Node) void {
 }
 
 test "from sorted slice" {
-    var test_slice: [1024]u32 = undefined;
+    var test_slice: [1024]u16 = undefined;
     const allocator = std.testing.allocator;
 
     for (test_slice[0..], 0..) |*item, i| item.* = @intCast(i);

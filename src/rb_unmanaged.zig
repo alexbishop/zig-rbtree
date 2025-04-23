@@ -432,7 +432,7 @@ pub fn RBTreeUnmanaged(
             clobber_key_and_value,
         };
 
-        /// The return type of `insertContext`
+        /// The return type of `insertWithContext`
         pub const InsertResult = struct {
             /// If the value already existed in the tree, then this variable
             /// will contain the key/value pair before it was clobbered
@@ -447,7 +447,7 @@ pub fn RBTreeUnmanaged(
         ///
         /// This is the most general function for insertion provided by this interface,
         /// all other insersion functions are based off this function.
-        pub fn insertContext(
+        pub fn insertWithContext(
             self: *Self,
             allocator: Allocator,
             ctx: Context,
@@ -574,7 +574,7 @@ pub fn RBTreeUnmanaged(
                     @compileError("this function is only defined when 'Context' is a zero size type");
                 }
             }
-            return self.insertContext(
+            return self.insertWithContext(
                 allocator,
                 undefined,
                 key,
@@ -587,7 +587,7 @@ pub fn RBTreeUnmanaged(
         ///
         /// This function assumes that the node is in the red-black tree, i.e., it does not
         /// verify if this is the case before removing.
-        pub fn removeNodeContext(
+        pub fn removeNodeWithContext(
             self: *Self,
             allocator: Allocator,
             ctx: Context,
@@ -615,7 +615,7 @@ pub fn RBTreeUnmanaged(
                     @compileError("this function is only defined when 'Context' is a zero size type");
                 }
             }
-            return self.removeNodeContext(allocator, undefined, node);
+            return self.removeNodeWithContext(allocator, undefined, node);
         }
 
         /// Returns true if the tree does not contain any nodes.
@@ -664,7 +664,7 @@ pub fn RBTreeUnmanaged(
         }
 
         /// Finds the node which corresponds to the largest entry which compares less than or equal to the given key.
-        pub fn findLowerBoundContext(
+        pub fn findLowerBoundWithContext(
             self: Self,
             ctx: Context,
             key: K,
@@ -696,7 +696,7 @@ pub fn RBTreeUnmanaged(
             return null;
         }
 
-        /// A specialisation of `findLowerBoundContext` when `Context` is a zero size type.
+        /// A specialisation of `findLowerBoundWithContext` when `Context` is a zero size type.
         pub fn findLowerBound(self: Self, key: K) ?*Node {
             comptime {
                 if (@sizeOf(Context) != 0) {
@@ -707,7 +707,7 @@ pub fn RBTreeUnmanaged(
         }
 
         /// Finds the node which corresponds to the smallest entry which compares greater than or equal to the given key.
-        pub fn findUpperBoundContext(
+        pub fn findUpperBoundWithContext(
             self: Self,
             ctx: Context,
             key: K,
@@ -739,7 +739,7 @@ pub fn RBTreeUnmanaged(
             return null;
         }
 
-        /// A specialisation of `findUpperBoundContext` when `Context` is a zero size type.
+        /// A specialisation of `findUpperBoundWithContext` when `Context` is a zero size type.
         pub fn findUpperBound(self: Self, key: K) ?*Node {
             comptime {
                 if (@sizeOf(Context) != 0) {
@@ -752,7 +752,7 @@ pub fn RBTreeUnmanaged(
         /// Attempts to find a given key in the tree.
         ///
         /// Returns `null` if the given key was not found
-        pub fn findContext(
+        pub fn findWithContext(
             self: Self,
             ctx: Context,
             key: K,
@@ -772,14 +772,14 @@ pub fn RBTreeUnmanaged(
             return null;
         }
 
-        /// A specialisation of `findContext` when `Context` is a zero size type.
+        /// A specialisation of `findWithContext` when `Context` is a zero size type.
         pub fn find(self: Self, key: K) ?*Node {
             comptime {
                 if (@sizeOf(Context) != 0) {
                     @compileError("this function is only defined when 'Context' is a zero size type");
                 }
             }
-            return self.findContext(undefined, key);
+            return self.findWithContext(undefined, key);
         }
 
         /// Similar to `KV` except stored references to the key and value
@@ -791,12 +791,12 @@ pub fn RBTreeUnmanaged(
         /// Attempts to find an entry in the tree
         ///
         /// Returns `null` if the entry could not be found
-        pub fn getEntryContext(
+        pub fn getEntryWithContext(
             self: Self,
             ctx: Context,
             key: K,
         ) ?Entry {
-            if (self.findContext(ctx, key)) |node| {
+            if (self.findWithContext(ctx, key)) |node| {
                 return Entry{
                     .key_ptr = &(node.key),
                     .value_ptr = &(node.value),
@@ -806,27 +806,30 @@ pub fn RBTreeUnmanaged(
             }
         }
 
+        /// A specialisation of `getEntryWithContext` when `Context` is a zero size type.
         pub fn getEntry(self: Self, key: K) ?Entry {
             comptime {
                 if (@sizeOf(Context) != 0) {
                     @compileError("this function is only defined when 'Context' is a zero size type");
                 }
             }
-            return self.getEntryContext(undefined, key);
+            return self.getEntryWithContext(undefined, key);
         }
 
-        pub fn fetchContext(
+        /// Gets a copy of the key-value pair associated to the given key
+        pub fn fetchWithContext(
             self: Self,
             ctx: Context,
             key: K,
         ) ?KV {
-            const result = self.findContext(ctx, key) orelse return null;
+            const result = self.findWithContext(ctx, key) orelse return null;
             return KV{
                 .key = result.key,
                 .value = result.value,
             };
         }
 
+        /// A specialisation of `fetchWithContext` when `Context` is a zero size type.
         pub fn fetch(self: Self, key: K) ?KV {
             comptime {
                 if (@sizeOf(Context) != 0) {
@@ -836,79 +839,92 @@ pub fn RBTreeUnmanaged(
             return self.fetch(undefined, key);
         }
 
-        pub fn getContext(
+        /// Obtains a copy of the value associated to given key
+        pub fn getWithContext(
             self: Self,
             ctx: Context,
             key: K,
         ) ?V {
-            const result = self.findContext(ctx, key) orelse return null;
+            const result = self.findWithContext(ctx, key) orelse return null;
             return result.value;
         }
 
+        /// A specialisation of `getWithContext` when `Context` is a zero size type.
         pub fn get(self: Self, key: K) ?V {
             comptime {
                 if (@sizeOf(Context) != 0) {
                     @compileError("this function is only defined when 'Context' is a zero size type");
                 }
             }
-            return self.getContext(undefined, key);
+            return self.getWithContext(undefined, key);
         }
 
-        pub fn getPtrContext(
+        /// Obtains a pointer to the value associated to the given key
+        pub fn getPtrWithContext(
             self: Self,
             ctx: Context,
             key: K,
         ) ?*V {
-            var result = self.findContext(ctx, key) orelse return null;
+            var result = self.findWithContext(ctx, key) orelse return null;
             return &(result.value);
         }
 
+        /// A specialisation of `getPtrWithContext` when `Context` is a zero size type.
         pub fn getPtr(self: Self, key: K) ?*V {
             comptime {
                 if (@sizeOf(Context) != 0) {
                     @compileError("this function is only defined when 'Context' is a zero size type");
                 }
             }
-            return self.getPtrContext(undefined, key);
+            return self.getPtrWithContext(undefined, key);
         }
 
-        pub fn getKeyContext(
+        /// Obtaines a copy of the key as stored in the red-black tree
+        ///
+        /// This may be useful when multiple keys can compare equal.
+        pub fn getKeyWithContext(
             self: Self,
             ctx: Context,
             key: K,
         ) ?K {
-            const result = self.findContext(ctx, key) orelse return null;
+            const result = self.findWithContext(ctx, key) orelse return null;
             return result.key;
         }
 
+        /// A specialisation of `getKeyWithContext` when `Context` is a zero size type.
         pub fn getKey(self: Self, key: K) ?K {
             comptime {
                 if (@sizeOf(Context) != 0) {
                     @compileError("this function is only defined when 'Context' is a zero size type");
                 }
             }
-            return self.getKeyContext(undefined, key);
+            return self.getKeyWithContext(undefined, key);
         }
 
-        pub fn getKeyPtrContext(
+        /// Gets a pointer to the key as stored in the red-black tree
+        ///
+        /// This function may be useful when multiple keys compare equal.
+        pub fn getKeyPtrWithContext(
             self: Self,
             ctx: Context,
             key: K,
         ) ?*K {
-            var result = self.findContext(ctx, key) orelse return null;
+            var result = self.findWithContext(ctx, key) orelse return null;
             return &(result.key);
         }
 
+        /// A specialisation of `getKeyPtrWithContext` when `Context` is a zero size type.
         pub fn getKeyPtr(self: Self, key: K) ?*K {
             comptime {
                 if (@sizeOf(Context) != 0) {
                     @compileError("this function is only defined when 'Context' is a zero size type");
                 }
             }
-            return self.getKeyPtrContext(undefined, key);
+            return self.getKeyPtrWithContext(undefined, key);
         }
 
-        pub fn containsContext(
+        /// Returns true if the red-black tree contains the given key
+        pub fn containsWithContext(
             self: Self,
             ctx: Context,
             key: K,
@@ -920,13 +936,14 @@ pub fn RBTreeUnmanaged(
             }
         }
 
+        /// A specialisation of `containsWithContext` when `Context` is a zero size type.
         pub fn contains(self: Self, key: K) bool {
             comptime {
                 if (@sizeOf(Context) != 0) {
                     @compileError("this function is only defined when 'Context' is a zero size type");
                 }
             }
-            return self.containsContext(undefined, key);
+            return self.containsWithContext(undefined, key);
         }
 
         // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -939,14 +956,18 @@ pub fn RBTreeUnmanaged(
             found_existing: bool,
         };
 
-        pub fn getOrPutValueContext(
+        /// Inserts an entry without clobbering the old entry
+        ///
+        /// If the key already exists in the red-black tree, then the corresponding entry is returned.
+        /// Otherwise, a new entry is inserted.
+        pub fn getOrPutValueWithContext(
             self: *Self,
             allocator: Allocator,
             ctx: Context,
             key: K,
             value: V,
         ) GetOrPutResult {
-            const result: InsertResult = self.insertContext(
+            const result: InsertResult = self.insertWithContext(
                 allocator,
                 ctx,
                 key,
@@ -960,6 +981,7 @@ pub fn RBTreeUnmanaged(
             };
         }
 
+        /// A specialisation of `getOrPutValueWithContext` when `Context` is a zero size type.
         pub fn getOrPutValue(
             self: *Self,
             allocator: Allocator,
@@ -971,7 +993,7 @@ pub fn RBTreeUnmanaged(
                     @compileError("this function is only defined when 'Context' is a zero size type");
                 }
             }
-            return self.getOrPutValueContext(
+            return self.getOrPutValueWithContext(
                 allocator,
                 undefined,
                 key,
@@ -979,13 +1001,17 @@ pub fn RBTreeUnmanaged(
             );
         }
 
-        pub fn getOrPutContext(
+        /// A specialisation of `getOrPutValueWithContext` when `Value` is a zero size type.
+        ///
+        /// This calls `getOrPutValueWithContext` with the `value` set to `undefined`.
+        /// This function is helful for the case where the type of value if `void`.
+        pub fn getOrPutWithContext(
             self: *Self,
             allocator: Allocator,
             ctx: Context,
             key: K,
         ) GetOrPutResult {
-            return self.getOrPutValueContext(
+            return self.getOrPutValueWithContext(
                 allocator,
                 ctx,
                 key,
@@ -993,6 +1019,7 @@ pub fn RBTreeUnmanaged(
             );
         }
 
+        /// A specialisation of `getOrPutWithContext` when `Context` is a zero size type.
         pub fn getOrPut(
             self: *Self,
             allocator: Allocator,
@@ -1003,21 +1030,25 @@ pub fn RBTreeUnmanaged(
                     @compileError("this function is only defined when 'Context' is a zero size type");
                 }
             }
-            return self.getOrPutContext(
+            return self.getOrPutWithContext(
                 allocator,
                 undefined,
                 key,
             );
         }
 
-        pub fn fetchPutContext(
+        /// Either inserts a new entry or clobbers the key of an old entry.
+        ///
+        /// That is, if the key already exists, then the od value if clobbered and the entry is returned.
+        /// Otherwise, a new entry is inserted into the tree.
+        pub fn fetchPutWithContext(
             self: *Self,
             allocator: Allocator,
             ctx: Context,
             key: K,
             value: V,
         ) Allocator.Error!?KV {
-            const result = try self.insertContext(
+            const result = try self.insertWithContext(
                 allocator,
                 ctx,
                 key,
@@ -1027,6 +1058,7 @@ pub fn RBTreeUnmanaged(
             return result.found_existing;
         }
 
+        /// A specialisation of `fetchPutWithContext` when `Context` is a zero size type.
         pub fn fetchPut(
             self: *Self,
             allocator: Allocator,
@@ -1038,7 +1070,7 @@ pub fn RBTreeUnmanaged(
                     @compileError("this function is only defined when 'Context' is a zero size type");
                 }
             }
-            return self.fetchPutContext(
+            return self.fetchPutWithContext(
                 allocator,
                 undefined,
                 key,
@@ -1046,14 +1078,16 @@ pub fn RBTreeUnmanaged(
             );
         }
 
-        pub fn putContext(
+        /// Either inserts a new entry or clobbers the value, or clobbers the value of
+        /// an entry with a matching key.
+        pub fn putWithContext(
             self: *Self,
             allocator: Allocator,
             ctx: Context,
             key: K,
             value: V,
         ) Allocator.Error!void {
-            _ = try self.insertContext(
+            _ = try self.insertWithContext(
                 allocator,
                 ctx,
                 key,
@@ -1062,6 +1096,7 @@ pub fn RBTreeUnmanaged(
             );
         }
 
+        /// A specialisation of `putWithContext` when `Context` is a zero size type.
         pub fn put(
             self: *Self,
             allocator: Allocator,
@@ -1073,7 +1108,7 @@ pub fn RBTreeUnmanaged(
                     @compileError("this function is only defined when 'Context' is a zero size type");
                 }
             }
-            return self.putContext(
+            return self.putWithContext(
                 allocator,
                 undefined,
                 key,
@@ -1081,13 +1116,15 @@ pub fn RBTreeUnmanaged(
             );
         }
 
-        pub fn addContext(
+        /// Either adds the given key to the red-black tree, or does nothing if
+        /// the key is already present.
+        pub fn addWithContext(
             self: *Self,
             allocator: Allocator,
             ctx: Context,
             key: K,
         ) Allocator.Error!void {
-            _ = try self.insertContext(
+            _ = try self.insertWithContext(
                 allocator,
                 ctx,
                 key,
@@ -1096,6 +1133,7 @@ pub fn RBTreeUnmanaged(
             );
         }
 
+        /// A specialisation of `addWithContext` when `Context` is a zero size type.
         pub fn add(
             self: *Self,
             allocator: Allocator,
@@ -1106,21 +1144,23 @@ pub fn RBTreeUnmanaged(
                     @compileError("this function is only defined when 'Context' is a zero size type");
                 }
             }
-            return self.addContext(
+            return self.addWithContext(
                 allocator,
                 undefined,
                 key,
             );
         }
 
-        pub fn putNoClobberContext(
+        /// Either add a new entry to the red-black tree, or makes no changes if the
+        /// key alreasy exists. That is, this function will not clobber any entries.
+        pub fn putNoClobberWithContext(
             self: *Self,
             allocator: Allocator,
             ctx: Context,
             key: K,
             value: V,
         ) Allocator.Error!void {
-            _ = try self.insertContext(
+            _ = try self.insertWithContext(
                 allocator,
                 ctx,
                 key,
@@ -1129,6 +1169,7 @@ pub fn RBTreeUnmanaged(
             );
         }
 
+        /// A specialisation of `putNoClobberWithContext` when `Context` is a zero size type.
         pub fn putNoClobber(
             self: *Self,
             allocator: Allocator,
@@ -1140,7 +1181,7 @@ pub fn RBTreeUnmanaged(
                     @compileError("this function is only defined when 'Context' is a zero size type");
                 }
             }
-            return self.putNoClobberContext(
+            return self.putNoClobberWithContext(
                 allocator,
                 undefined,
                 key,
@@ -1152,18 +1193,22 @@ pub fn RBTreeUnmanaged(
         // Remove functions
         // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-        pub fn fetchRemoveContext(
+        /// Finds and removes an entry from the red-black tree
+        ///
+        /// A copy of the removed entry is returned. If `null` is returned,
+        /// then the key was not found.
+        pub fn fetchRemoveWithContext(
             self: *Self,
             allocator: Allocator,
             ctx: Context,
             key: K,
         ) ?KV {
-            const node: *Node = self.findContext(ctx, key) orelse return null;
+            const node: *Node = self.findWithContext(ctx, key) orelse return null;
             const result = KV{
                 .key = node.key,
                 .value = node.value,
             };
-            self.removeNodeContext(
+            self.removeNodeWithContext(
                 allocator,
                 ctx,
                 node,
@@ -1171,6 +1216,7 @@ pub fn RBTreeUnmanaged(
             return result;
         }
 
+        /// A specialisation of `fetchRemoveWithContext` when `Context` is a zero size type.
         pub fn fetchRemove(
             self: *Self,
             allocator: Allocator,
@@ -1181,7 +1227,7 @@ pub fn RBTreeUnmanaged(
                     @compileError("this function is only defined when 'Context' is a zero size type");
                 }
             }
-            return self.fetchRemoveContext(
+            return self.fetchRemoveWithContext(
                 allocator,
                 undefined,
                 key,
@@ -1190,14 +1236,16 @@ pub fn RBTreeUnmanaged(
 
         //~~~~~~~~~~~~~~~~~~~~~
 
-        pub fn removeContext(
+        /// Finds and removes an entry from the tree. Returns false, if and only if the given
+        /// key could not be found in the tree.
+        pub fn removeWithContext(
             self: *Self,
             allocator: Allocator,
             ctx: Context,
             key: K,
         ) bool {
-            const node: *Node = self.findContext(ctx, key) orelse return false;
-            self.removeNodeContext(
+            const node: *Node = self.findWithContext(ctx, key) orelse return false;
+            self.removeNodeWithContext(
                 allocator,
                 ctx,
                 node,
@@ -1205,6 +1253,7 @@ pub fn RBTreeUnmanaged(
             return true;
         }
 
+        /// A specialisation of `removeWithContext` when `Context` is a zero size type.
         pub fn remove(
             self: *Self,
             allocator: Allocator,
@@ -1215,7 +1264,7 @@ pub fn RBTreeUnmanaged(
                     @compileError("this function is only defined when 'Context' is a zero size type");
                 }
             }
-            return self.removeContext(
+            return self.removeWithContext(
                 allocator,
                 undefined,
                 key,
@@ -1224,7 +1273,9 @@ pub fn RBTreeUnmanaged(
 
         //~~~~~~~~~~~~~~~~~~~~~
 
-        pub fn removeNodeGetNextContext(
+        /// Removes the given node from the red-black tree and returns the smallest node that compares
+        /// as greater than the removed node.
+        pub fn removeNodeGetNextWithContext(
             self: *Self,
             allocator: Allocator,
             ctx: Context,
@@ -1235,6 +1286,7 @@ pub fn RBTreeUnmanaged(
             return next;
         }
 
+        /// A specialisation of `removeNodeGetNextWithContext` when `Context` is a zero size type.
         pub fn removeNodeGetNext(
             self: *Self,
             allocator: Allocator,
@@ -1245,24 +1297,27 @@ pub fn RBTreeUnmanaged(
                     @compileError("this function is only defined when 'Context' is a zero size type");
                 }
             }
-            return self.removeNodeGetNextContext(
+            return self.removeNodeGetNextWithContext(
                 allocator,
                 undefined,
                 node,
             );
         }
 
-        pub fn removeNodeGetPrevContext(
+        /// Removes the given node from the red-black tree and returns the largest node that compares
+        /// as less than the removed node.
+        pub fn removeNodeGetPrevWithContext(
             self: *Self,
             allocator: Allocator,
             ctx: Context,
             node: *Node,
         ) ?*Node {
             const prev: ?*Node = node.prev();
-            self.removeNodeContext(allocator, ctx, node);
+            self.removeNodeWithContext(allocator, ctx, node);
             return prev;
         }
 
+        /// A specialisation of `removeNodeGetPrevWithContext` when `Context` is a zero size type.
         pub fn removeNodeGetPrev(
             self: *Self,
             allocator: Allocator,
@@ -1273,7 +1328,7 @@ pub fn RBTreeUnmanaged(
                     @compileError("this function is only defined when 'Context' is a zero size type");
                 }
             }
-            return self.removeNodeGetPrevContext(
+            return self.removeNodeGetPrevWithContext(
                 allocator,
                 undefined,
                 node,
@@ -1318,7 +1373,11 @@ pub fn RBTreeUnmanaged(
             self.* = Self.init();
         }
 
-        pub fn cloneContext(
+        /// Clones the tree with a given Context.
+        ///
+        /// If the context if the same as the context used to create this red-black tree,
+        /// then you should instead use the function `clone`
+        pub fn cloneWithNewContext(
             self: Self,
             allocator: Allocator,
             ctx: Context,
@@ -1328,7 +1387,7 @@ pub fn RBTreeUnmanaged(
 
             var cur: ?*Node = self.findMin();
             while (cur) |c| : (cur = c.next()) {
-                try result.putContext(
+                try result.putWithContext(
                     allocator,
                     ctx,
                     c.key,
@@ -1339,6 +1398,8 @@ pub fn RBTreeUnmanaged(
             return result;
         }
 
+        /// Clones the red-black tree such that the new tree has exactly the same
+        /// layout. No context is needed for this operation.
         pub fn clone(self: Self, allocator: Allocator) Allocator.Error!Self {
             var result = Self.init();
             errdefer result.deinit(allocator);
