@@ -215,7 +215,7 @@ test "max_subtrees" {
         i32,
         void,
         void,
-        rbtreelib.defaultOrder(i32),
+        rbtreelib.defaultOrder(i32, 1),
         .{},
     );
 

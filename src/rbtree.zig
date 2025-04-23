@@ -20,7 +20,7 @@
 //! An example of the usage of `DefaultRBTree` is given in the
 //! [GitHub release](https://github.com/alexbishop/zig-rbtree/releases/tag/v1.0.0).
 //!
-//! For an example of an augmented red-black tree, see `example/augmented_example.zig` 
+//! For an example of an augmented red-black tree, see `example/augmented_example.zig`
 //! in the source for this library which you can find
 //! [here](https://github.com/alexbishop/zig-rbtree/blob/main/example/augmented_example.zig).
 //!
@@ -116,7 +116,7 @@ pub fn DefaultRBTree(
     /// you want your red-black tree to implement a set.
     comptime V: type,
 ) type {
-    return RBTree(K, V, void, defaultOrder(K), .{}, .{});
+    return RBTree(K, V, void, defaultOrder(K, 1), .{}, .{});
 }
 
 /// An unmanaged red-black tree with the default order, and no augmentation.
@@ -129,7 +129,7 @@ pub fn DefaultRBTreeUnmanaged(
     /// you want your red-black tree to implement a set.
     comptime V: type,
 ) type {
-    return RBTreeUnmanaged(K, V, void, defaultOrder(K), .{}, .{});
+    return RBTreeUnmanaged(K, V, void, defaultOrder(K, 1), .{}, .{});
 }
 
 /// The basic methods to implement a red-black tree with the default order
@@ -143,7 +143,7 @@ pub fn DefaultRBTreeImplementation(
     /// you want your red-black tree to implement a set.
     comptime V: type,
 ) type {
-    return RBTreeImplementation(K, V, void, defaultOrder(K), .{}, .{});
+    return RBTreeImplementation(K, V, void, defaultOrder(K, 1), .{}, .{});
 }
 
 pub const isNode = node.isNode;
@@ -230,10 +230,11 @@ pub fn defaultOrder(
     /// The type of key which is beign compared `meta.order`
     /// for more information on valid values of `K`.
     comptime K: type,
+    comptime level: ?usize,
 ) fn (_: void, lhs: K, rhs: K) std.math.Order {
     const tmp = struct {
         pub fn do(_: void, lhs: K, rhs: K) std.math.Order {
-            return meta.order(lhs, rhs);
+            return meta.order(lhs, rhs, level);
         }
     };
     return tmp.do;
