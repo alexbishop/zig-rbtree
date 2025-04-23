@@ -2,7 +2,7 @@ const std = @import("std");
 const rbtreelib = @import("rbtree");
 
 pub const DefaultRBTreeUnmanaged = rbtreelib.DefaultRBTreeUnmanaged;
-const Tree = DefaultRBTreeUnmanaged(u32, void);
+const Tree = DefaultRBTreeUnmanaged(u16, void);
 const Node = Tree.Node;
 
 fn getBlackDepth(node: ?*Node) !usize {
@@ -20,12 +20,16 @@ fn getBlackDepth(node: ?*Node) !usize {
                 if (r.getColor() == .red) return error.RedViolation;
             }
         }
-        return left_depth;
+        if (n.getColor() == .black) {
+            return left_depth + 1;
+        } else {
+            return left_depth;
+        }
     } else {
         return 0;
     }
 }
-fn checkMatchesSlice(node: ?*Node, slice: []const u32) bool {
+fn checkMatchesSlice(node: ?*Node, slice: []const u16) bool {
     var current_node = node;
     for (slice) |item| {
         if (item != current_node.?.key) return false;
