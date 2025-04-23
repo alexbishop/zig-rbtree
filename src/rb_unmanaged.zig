@@ -37,6 +37,9 @@ pub fn isRBTreeUnmanaged(comptime T: type) bool {
 ///
 /// Note that the allocator and context are not managed, that is, they must be passed
 /// to the relevant method calls every time.
+///
+/// The relevant functions provided by this abstraction are `insert`, `remove`, `clone`,
+/// and `deinit`. All other modifying functions in this type call one of these.
 pub fn RBTreeUnmanaged(
     /// the type used for keys in the red-black tree
     comptime K: type,
@@ -140,14 +143,21 @@ pub fn RBTreeUnmanaged(
             }
         }
 
-        /// Initiates a subtree with the given values
+        /// The error union used by `initFromSortedKVIterator`
+        pub const InitFromSortedError = Allocator.Error || error{
+            /// This error is returned by `initFromSortedKVIterator` if the provided
+            /// iterator does not have the specified amount of entries
+            ReachedEndOfIterator,
+        };
+
+        /// Initiates a subtree with the given values see `initFromSortedKVIterator`
         fn initSubtreeRec(
             SortedKVIterator_Ptr: type,
             allocator: Allocator,
             subtree_size: usize,
             iterator_ref: SortedKVIterator_Ptr,
             subtree_root_color: NodeColor,
-        ) !?*Node {
+        ) InitFromSortedError!?*Node {
             if (subtree_size == 0) return null;
 
             const next_subtree_root_color: NodeColor = switch (subtree_root_color) {
@@ -173,7 +183,9 @@ pub fn RBTreeUnmanaged(
             const node: *Node = try allocator.create(Node);
             errdefer allocator.destroy(node);
 
-            const kv: KV = iterator_ref.next().?;
+            const kv: KV =
+                iterator_ref.next() orelse
+                return InitFromSortedError.ReachedEndOfIterator;
 
             node.* = Node.init(.{
                 .subtree_size = if (options.store_subtree_sizes) subtree_size else void{},
@@ -203,31 +215,65 @@ pub fn RBTreeUnmanaged(
 
         /// Constructs a red-black tree from a sorted list
         ///
-        /// Arguments:
-        ///  * `SortedKVIterator`
-        ///      must either be the type of an iterator which returns value
-        ///      of type `KV` or the type of a pointer to such an object
-        ///  * `allocator`
-        ///      the allocator to use when constructing the element
-        ///  * `size`
-        ///      the number of elements to read from `iterator`
-        ///  * `iterator`
-        ///      an iterator to key-value pairs which are in sorted order.
+        /// The purpose of this method is to provide a way of initialising a
+        /// red-black tree from a sorted list without the need for swaps, or
+        /// recolours.
         ///
-        ///  The purpose of this method is to provide a way of initialising a
-        ///  red-black tree from a sorted list without the need for swaps, or
-        ///  recolours.
+        /// Note that this function returns an error
+        /// `InitSubtreeFromSortedError.ReachedEndOfIterator` if the provided
+        /// iterator does not have the specified number of entries.
         ///
-        ///  **Note:**
-        ///  unlike most other methods in this library, this initialisation
-        ///  method is implemented using recursion. (As one would expect, the
-        ///  total required length of the stack is proportial to the log of `size`.)
+        /// **Note:**
+        /// unlike most other methods in this library, this initialisation
+        /// method is implemented using recursion. (As one would expect, the
+        /// total required length of the stack is proportial to the log of `size`.)
         pub fn initFromSortedKVIterator(
+            /// The type of the iterator from which to ontain the sorted values
+            ///
+            /// This can either be the type of a `KV` iterator, or the type of a pointer
+            /// to such an iterator.
+            ///
+            /// For example, suppose we have the following code.
+            ///
+            /// ```zig
+            /// const KVSliceIterator = struct {
+            ///     data: []const KV,
+            ///     index: usize = 0,
+            ///
+            ///     pub fn next(self: *KVSliceIterator) ?KV {
+            ///         if (self.index == self.data.len) {
+            ///             return null;
+            ///         } else {
+            ///             const kv = self.data[self.index];
+            ///             self.index += 1;
+            ///             return kv;
+            ///         }
+            ///     }
+            /// };
+            /// ```
+            ///
+            /// Then, `KVSliceIterator` and `*KVSliceIterator` are both valid values for
+            /// the parameter `SortedKVIterator`.
             SortedKVIterator: type,
+            /// The allocator to use to construct nodes in the red-black tree
             allocator: Allocator,
+            /// The number of items to read from the iterator.
+            ///
+            /// This function constructs a sorted binary tree from the first `size` items
+            /// which are obtained by calling `next()` on variable `iterator` as provideed to
+            /// this function
             size: usize,
+            /// An iterator over values of type `KV`
+            ///
+            /// Note that this function assumes that the items are returned from `iterator` in
+            /// sorted order, and that `iterator` contains at least `size` many items.
+            ///
+            /// If the end of the iterator is seen before `size` many items are read, then
+            /// an error of type `InitSubtreeFromSortedError.ReachedEndOfIterator` will
+            /// be returned. Note that cleanup is done before returning an error,
+            /// so you don't have to worry about memory leaks.
             iterator: SortedKVIterator,
-        ) !Self {
+        ) InitFromSortedError!Self {
             comptime {
                 switch (@typeInfo(SortedKVIterator)) {
                     .@"struct" => {},
@@ -301,10 +347,23 @@ pub fn RBTreeUnmanaged(
                 }
             }
         };
+        /// Initialises a red-black tree from a slice of sorted keys.
+        ///
+        /// Note that values associated to each node in the returned tree
+        /// will be initialised from `undefined`. This function is perfect
+        /// if the value type of your tree is `void`. For example, if your
+        /// tree was constructed from the type
+        ///
+        /// ```zig
+        /// const Tree = DefaultRBTreeUnmanaged(usize, void);
+        /// ```
+        ///
+        /// Thus, this function is well-suited for the cases where your
+        /// red-black tree represents a set.
         pub fn initFromSortedKVSlice(
             allocator: Allocator,
             slice: []const KV,
-        ) !Self {
+        ) Allocator.Error!Self {
             return initFromSortedKVIterator(
                 KVSliceIterator,
                 allocator,
@@ -312,7 +371,13 @@ pub fn RBTreeUnmanaged(
                 KVSliceIterator{
                     .data = slice,
                 },
-            );
+            ) catch |err| if (err == InitFromSortedError.ReachedEndOfIterator) {
+                // we should never have this type of error as out iterator was created
+                // such that this cannot happen
+                unreachable;
+            } else {
+                return @errorCast(err);
+            };
         }
 
         const SliceIterator = struct {
@@ -332,10 +397,14 @@ pub fn RBTreeUnmanaged(
                 }
             }
         };
+        /// Initialises a red-black tree from a slice of sorted `KV` pairs.
+        ///
+        /// Note that the slice given as input must be sorted with respect to
+        /// the relevant order.
         pub fn initFromSortedSlice(
             allocator: Allocator,
             slice: []const K,
-        ) !Self {
+        ) Allocator.Error!Self {
             return initFromSortedKVIterator(
                 SliceIterator,
                 allocator,
@@ -343,16 +412,27 @@ pub fn RBTreeUnmanaged(
                 SliceIterator{
                     .data = slice,
                 },
-            );
+            ) catch |err| if (err == InitFromSortedError.ReachedEndOfIterator) {
+                // we should never have this type of error as out iterator was created
+                // such that this cannot happen
+                unreachable;
+            } else {
+                return @errorCast(err);
+            };
         }
 
+        /// Specifies what to do when you try to insert a key that already exists in the
+        /// tree.
         pub const ClobberOptions = enum {
+            /// Leave the current key and value in the node alone, i.e., we don't overwrite anything
             no_clobber,
+            /// Overwrite the value of the node, but leave the key unchanged
             clobber_value_only,
+            /// Overwrite both the key and the value in the node
             clobber_key_and_value,
         };
 
-        /// Describes the result of an attempted insertion
+        /// The return type of `insertContext`
         pub const InsertResult = struct {
             /// If the value already existed in the tree, then this variable
             /// will contain the key/value pair before it was clobbered
@@ -373,6 +453,7 @@ pub fn RBTreeUnmanaged(
             ctx: Context,
             key: K,
             value: V,
+            /// Specifies what to do if the key already exists in the tree
             clobber_option: ClobberOptions,
         ) Allocator.Error!InsertResult {
             // see if our tree has a root
@@ -485,6 +566,7 @@ pub fn RBTreeUnmanaged(
             allocator: Allocator,
             key: K,
             value: V,
+            /// Specifies what to do if the key already exists in the tree
             clobber_option: ClobberOptions,
         ) Allocator.Error!InsertResult {
             comptime {
@@ -561,6 +643,9 @@ pub fn RBTreeUnmanaged(
         // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
         /// Returns the node corresponding to the smallest key stored in the tree.
+        ///
+        /// Call this function if you want an forward iterator over all the entries
+        /// in the red-black tree.
         pub fn findMin(self: Self) ?*Node {
             if (self.root) |r| {
                 return r.getLeftmostInSubtree();
@@ -578,7 +663,7 @@ pub fn RBTreeUnmanaged(
             }
         }
 
-        /// Finds the node which corresponds to the largest value which compares less than or equal to the given key.
+        /// Finds the node which corresponds to the largest entry which compares less than or equal to the given key.
         pub fn findLowerBoundContext(
             self: Self,
             ctx: Context,
@@ -621,7 +706,7 @@ pub fn RBTreeUnmanaged(
             return self.findLowerBound(undefined, key);
         }
 
-        /// Finds the node which corresponds to the smalles value which compares greater than or equal to the given key.
+        /// Finds the node which corresponds to the smallest entry which compares greater than or equal to the given key.
         pub fn findUpperBoundContext(
             self: Self,
             ctx: Context,
@@ -665,6 +750,8 @@ pub fn RBTreeUnmanaged(
         }
 
         /// Attempts to find a given key in the tree.
+        ///
+        /// Returns `null` if the given key was not found
         pub fn findContext(
             self: Self,
             ctx: Context,
@@ -695,11 +782,15 @@ pub fn RBTreeUnmanaged(
             return self.findContext(undefined, key);
         }
 
+        /// Similar to `KV` except stored references to the key and value
         pub const Entry = struct {
             key_ptr: *K,
             value_ptr: *V,
         };
 
+        /// Attempts to find an entry in the tree
+        ///
+        /// Returns `null` if the entry could not be found
         pub fn getEntryContext(
             self: Self,
             ctx: Context,

@@ -91,6 +91,8 @@ pub fn RBTree(
             };
         }
 
+        pub const InitFromSortedError = ManagedType.InitFromSortedError;
+
         /// Constructs a red-black tree from a sorted list
         ///
         /// Arguments:
@@ -120,7 +122,7 @@ pub fn RBTree(
             ctx: Context,
             size: usize,
             iterator: SortedKVIterator,
-        ) !Self {
+        ) InitFromSortedError!Self {
             return Self{
                 .managed = try ManagedType.initFromSortedKVIterator(
                     SortedKVIterator,
@@ -137,7 +139,7 @@ pub fn RBTree(
             allocator: Allocator,
             ctx: Context,
             slice: []const KV,
-        ) !Self {
+        ) Allocator.Error!Self {
             return Self{
                 .managed = try ManagedType.initFromSortedKVSlice(
                     allocator,
@@ -152,7 +154,7 @@ pub fn RBTree(
             allocator: Allocator,
             ctx: Context,
             slice: []const K,
-        ) !Self {
+        ) Allocator.Error!Self {
             return Self{
                 .managed = try ManagedType.initFromSortedSlice(
                     allocator,
