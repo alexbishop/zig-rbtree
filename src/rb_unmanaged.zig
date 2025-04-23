@@ -117,32 +117,6 @@ pub fn RBTreeUnmanaged(
             }
         }
 
-        /// Used in the implementation of `initSubtreeRec`
-        ///
-        /// Suppose we are constructing a left leaning binary search tree
-        /// of minimal depth which contains exactly `subtree_size` many
-        /// nodes. Then, this function determines the size of the left
-        /// subtree of the root.
-        fn calculateLeftSubtreeSize(subtree_size: usize) usize {
-            if (subtree_size <= 1) return 0;
-
-            // notice that we need to truncate in the following
-            // for example, on a 64-bit system, this would be a truncation from u7 to u6.
-            // This is valid as we only ever need the extra bit when `subtree_size` is all zeros which is
-            // covered by the above base cases
-            const maximum_tree_size: usize = @as(usize, std.math.maxInt(usize)) >> @truncate(@clz(subtree_size));
-            // for the next two numbers to make sense, we need for subtree_size to have at least 3 bits.
-            // This is the case when `subtree_size > 2` which is covered in out previous cases.
-            const left_subtree_max_size: usize = maximum_tree_size >> 1;
-            const right_subtree_min_size: usize = maximum_tree_size >> 2;
-
-            if (subtree_size >= left_subtree_max_size + right_subtree_min_size + 1) {
-                return left_subtree_max_size;
-            } else {
-                return subtree_size - 1 - right_subtree_min_size;
-            }
-        }
-
         /// The error union used by `initFromSortedKVIterator`
         pub const InitFromSortedError = Allocator.Error || error{
             /// This error is returned by `initFromSortedKVIterator` if the provided
