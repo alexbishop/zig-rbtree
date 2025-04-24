@@ -140,6 +140,32 @@ pub fn RBTreeUnmanaged(
             };
         }
 
+        fn fillSubtreeCounts(root: *Node) void {
+            var current: ?*Node = root;
+            while (current) |cur| {
+                var total: usize = 1;
+
+                if (cur.left) |left| {
+                    if (left.subtree_size == 0) {
+                        current = left;
+                        continue;
+                    }
+                    total += left.subtree_size;
+                }
+
+                if (cur.right) |right| {
+                    if (right.subtree_size == 0) {
+                        current = right;
+                        continue;
+                    }
+                    total += right.subtree_size;
+                }
+
+                cur.subtree_size = total;
+                current = cur.getParent();
+            }
+        }
+
         /// Constructs a red-black tree from a sorted list
         ///
         /// The purpose of this method is to provide a way of initialising a
@@ -234,7 +260,10 @@ pub fn RBTreeUnmanaged(
             };
 
             const root: *Node = try allocator.create(Node);
-            root.* = Node.init(.{ .color = current_level_color });
+            root.* = Node.init(.{
+                .color = current_level_color,
+                .subtree_size = if (options.store_subtree_sizes) 0 else void{},
+            });
             var head_of_list: *Node = root;
 
             errdefer {
@@ -267,6 +296,7 @@ pub fn RBTreeUnmanaged(
                             new_node.* = Node.init(.{
                                 .parent = cur,
                                 .color = current_level_color,
+                                .subtree_size = if (options.store_subtree_sizes) 0 else void{},
                             });
                             // add this node to its new position
                             if (previous_list_pos) |prev| {
@@ -285,6 +315,7 @@ pub fn RBTreeUnmanaged(
                             new_left_node.* = Node.init(.{
                                 .parent = cur,
                                 .color = current_level_color,
+                                .subtree_size = if (options.store_subtree_sizes) 0 else void{},
                             });
                             if (previous_list_pos) |prev| {
                                 prev.right = new_left_node;
@@ -301,6 +332,7 @@ pub fn RBTreeUnmanaged(
                             new_right_node.* = Node.init(.{
                                 .parent = cur,
                                 .color = current_level_color,
+                                .subtree_size = if (options.store_subtree_sizes) 0 else void{},
                             });
                             if (previous_list_pos) |prev| {
                                 prev.right = new_right_node;
@@ -320,8 +352,10 @@ pub fn RBTreeUnmanaged(
             // remove the linked list
             clearLinkedList(head_of_list);
 
-            // fill in the list
+            // fill in the tree
             {
+                // we need to take a copy of iterator as we need for it to
+                // be non-const.
                 var iterator_var = iterator;
                 var current_tree_pos: ?*Node = head_of_list;
                 while (current_tree_pos) |node| {
@@ -335,10 +369,18 @@ pub fn RBTreeUnmanaged(
                 }
             }
 
-            return .{
-                .root = root,
-                .size = size,
-            };
+            if (options.store_subtree_sizes) {
+                fillSubtreeCounts(root);
+                return .{
+                    .root = root,
+                    .size = void{},
+                };
+            } else {
+                return .{
+                    .root = root,
+                    .size = size,
+                };
+            }
         }
 
         const KVSliceIterator = struct {
