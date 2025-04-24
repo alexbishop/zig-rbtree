@@ -140,13 +140,87 @@ pub fn RBTreeUnmanaged(
             };
         }
 
-        fn initTreeFromIteratorRef(
-            SortedKVIterator_Ptr: type,
+        /// Constructs a red-black tree from a sorted list
+        ///
+        /// The purpose of this method is to provide a way of initialising a
+        /// red-black tree from a sorted list without the need for swaps, or
+        /// recolours.
+        ///
+        /// Note that this function returns an error
+        /// `InitSubtreeFromSortedError.ReachedEndOfIterator` if the provided
+        /// iterator does not have the specified number of entries.
+        pub fn initFromSortedKVIterator(
+            /// The type of the iterator from which to ontain the sorted values
+            ///
+            /// This can either be the type of a `KV` iterator, or the type of a pointer
+            /// to such an iterator.
+            ///
+            /// For example, suppose we have the following code.
+            ///
+            /// ```zig
+            /// const KVSliceIterator = struct {
+            ///     data: []const KV,
+            ///     index: usize = 0,
+            ///
+            ///     pub fn next(self: *KVSliceIterator) ?KV {
+            ///         if (self.index == self.data.len) {
+            ///             return null;
+            ///         } else {
+            ///             const kv = self.data[self.index];
+            ///             self.index += 1;
+            ///             return kv;
+            ///         }
+            ///     }
+            /// };
+            /// ```
+            ///
+            /// Then, `KVSliceIterator` and `*KVSliceIterator` are both valid values for
+            /// the parameter `SortedKVIterator`.
+            SortedKVIterator: type,
+            /// The allocator to use to construct nodes in the red-black tree
             allocator: Allocator,
+            /// The number of items to read from the iterator.
+            ///
+            /// This function constructs a sorted binary tree from the first `size` items
+            /// which are obtained by calling `next()` on variable `iterator` as provideed to
+            /// this function
             size: usize,
-            iterator: SortedKVIterator_Ptr,
-        ) InitFromSortedError!?*Node {
-            if (size == 0) return null;
+            /// An iterator over values of type `KV`
+            ///
+            /// Note that this function assumes that the items are returned from `iterator` in
+            /// sorted order, and that `iterator` contains at least `size` many items.
+            ///
+            /// If the end of the iterator is seen before `size` many items are read, then
+            /// an error of type `InitSubtreeFromSortedError.ReachedEndOfIterator` will
+            /// be returned. Note that cleanup is done before returning an error,
+            /// so you don't have to worry about memory leaks.
+            iterator: SortedKVIterator,
+        ) InitFromSortedError!Self {
+            comptime {
+                switch (@typeInfo(SortedKVIterator)) {
+                    .@"struct" => {},
+                    .pointer => |p| {
+                        switch (@typeInfo(p)) {
+                            .@"struct" => {},
+                            else => {
+                                @compileError(
+                                    \\  Invalid value for type `SortedKVIterator`
+                                    \\      must either be the type of an iterator which returns value
+                                    \\      of type `KV` or the type of a pointer to such an object
+                                );
+                            },
+                        }
+                    },
+                    else => {
+                        @compileError(
+                            \\  Invalid value for type `SortedKVIterator`
+                            \\      must either be the type of an iterator which returns value
+                            \\      of type `KV` or the type of a pointer to such an object
+                        );
+                    },
+                }
+            }
+            if (size == 0) return init();
 
             var current_level_color: NodeColor = brk: {
                 // the depth of the tree
@@ -248,9 +322,10 @@ pub fn RBTreeUnmanaged(
 
             // fill in the list
             {
+                var iterator_var = iterator;
                 var current_tree_pos: ?*Node = head_of_list;
                 while (current_tree_pos) |node| {
-                    if (iterator.next()) |kv| {
+                    if (iterator_var.next()) |kv| {
                         node.key = kv.key;
                         node.value = kv.value;
                         current_tree_pos = node.next();
@@ -260,119 +335,8 @@ pub fn RBTreeUnmanaged(
                 }
             }
 
-            return root;
-        }
-
-        /// Constructs a red-black tree from a sorted list
-        ///
-        /// The purpose of this method is to provide a way of initialising a
-        /// red-black tree from a sorted list without the need for swaps, or
-        /// recolours.
-        ///
-        /// Note that this function returns an error
-        /// `InitSubtreeFromSortedError.ReachedEndOfIterator` if the provided
-        /// iterator does not have the specified number of entries.
-        ///
-        /// **Note:**
-        /// unlike most other methods in this library, this initialisation
-        /// method is implemented using recursion. (As one would expect, the
-        /// total required length of the stack is proportial to the log of `size`.)
-        pub fn initFromSortedKVIterator(
-            /// The type of the iterator from which to ontain the sorted values
-            ///
-            /// This can either be the type of a `KV` iterator, or the type of a pointer
-            /// to such an iterator.
-            ///
-            /// For example, suppose we have the following code.
-            ///
-            /// ```zig
-            /// const KVSliceIterator = struct {
-            ///     data: []const KV,
-            ///     index: usize = 0,
-            ///
-            ///     pub fn next(self: *KVSliceIterator) ?KV {
-            ///         if (self.index == self.data.len) {
-            ///             return null;
-            ///         } else {
-            ///             const kv = self.data[self.index];
-            ///             self.index += 1;
-            ///             return kv;
-            ///         }
-            ///     }
-            /// };
-            /// ```
-            ///
-            /// Then, `KVSliceIterator` and `*KVSliceIterator` are both valid values for
-            /// the parameter `SortedKVIterator`.
-            SortedKVIterator: type,
-            /// The allocator to use to construct nodes in the red-black tree
-            allocator: Allocator,
-            /// The number of items to read from the iterator.
-            ///
-            /// This function constructs a sorted binary tree from the first `size` items
-            /// which are obtained by calling `next()` on variable `iterator` as provideed to
-            /// this function
-            size: usize,
-            /// An iterator over values of type `KV`
-            ///
-            /// Note that this function assumes that the items are returned from `iterator` in
-            /// sorted order, and that `iterator` contains at least `size` many items.
-            ///
-            /// If the end of the iterator is seen before `size` many items are read, then
-            /// an error of type `InitSubtreeFromSortedError.ReachedEndOfIterator` will
-            /// be returned. Note that cleanup is done before returning an error,
-            /// so you don't have to worry about memory leaks.
-            iterator: SortedKVIterator,
-        ) InitFromSortedError!Self {
-            comptime {
-                switch (@typeInfo(SortedKVIterator)) {
-                    .@"struct" => {},
-                    .pointer => |p| {
-                        switch (@typeInfo(p)) {
-                            .@"struct" => {},
-                            else => {
-                                @compileError(
-                                    \\  Invalid value for type `SortedKVIterator`
-                                    \\      must either be the type of an iterator which returns value
-                                    \\      of type `KV` or the type of a pointer to such an object
-                                );
-                            },
-                        }
-                    },
-                    else => {
-                        @compileError(
-                            \\  Invalid value for type `SortedKVIterator`
-                            \\      must either be the type of an iterator which returns value
-                            \\      of type `KV` or the type of a pointer to such an object
-                        );
-                    },
-                }
-            }
-            // we want to make sure that the deepest nodes are colored red,
-            // we color our nodes by alternating between black and red
-            // Thus if tree_depth is even, we start with black, and if
-            // tree_depth is odd, we start with red.
-            //
-            const RefType: type = switch (@typeInfo(SortedKVIterator)) {
-                .@"struct" => *SortedKVIterator,
-                else => SortedKVIterator,
-            };
-            // we make a copy in case SortedKVIterator is not a pointer.
-            // We need to make a copy so that we can modify it in this case
-            var iter_cpy = iterator;
-
-            const tree_root: ?*Node = try initTreeFromIteratorRef(
-                RefType,
-                allocator,
-                size,
-                switch (@typeInfo(SortedKVIterator)) {
-                    .@"struct" => &iter_cpy,
-                    else => iter_cpy,
-                },
-            );
-
             return .{
-                .root = tree_root,
+                .root = root,
                 .size = size,
             };
         }
