@@ -62,35 +62,6 @@ This translation was performed using the awk script given in `scripts/tests.gawk
 As the name suggests this script was written to be run with [gawk](https://www.gnu.org/software/gawk/manual/gawk.html).
 (At this point, there are still 6 small tests left to be translated.)
 
-## New Features
-
-### Background
-
-In all of the new methods listed below, `SortedKVIterator` is either the type of a Zig iterator that returns `KV` (see https://zig.guide/standard-library/iterators/) or a pointer to one.
-
-For example, the following is an implementation of such an iterator (where `KV` is the subtype of `RBTree` or `RBTreeUnmanaged`):
-
-```zig
-const KVSliceIterator = struct {
-    data: []const KV,
-    index: usize = 0,
-
-    pub fn next(self: *KVSliceIterator) ?KV {
-        if (self.index == self.data.len) {
-            return null;
-        } else {
-            const kv = self.data[self.index];
-            self.index += 1;
-            return kv;
-        }
-    }
-};
-```
-
-Thus, `KVSliceIterator` and `*KVSliceIterator` are both valid values for `SortedKVIterator`.
-
-If `SortedKVIterator` is a pointer (and the function does not return an error), then the given iterator will point to the entry which lies immediately after the last entry that was added to the red-black tree.
-
 ## 1. Examples
 
 ```zig
