@@ -106,20 +106,98 @@ pub fn RBTreeImplementation(
         /// Used to represent left or right, in reference to the left and right subtrees
         pub const Direction = RBNode.Direction;
         /// The type of the nodes in the tree
+        ///
+        /// This is provided to enable metaprogramming
         pub const Node = RBNode.Node(
             K,
             V,
             options,
         );
 
-        /// Used to specify the location of a `null` in the tree.
+        /// A container for a reference to the key and value of a node
+        pub const Entry = struct {
+            key_ptr: *K,
+            value_ptr: *V,
+        };
+        /// A forward iterator over the entries in a red-black tree
         ///
-        /// That is, this type represent an empty location in the tree which is the
-        /// `direction` subtree of node `parent`
+        /// For more advanced iteration over red-black trees, we
+        /// suggest that the programmer just use the `next` and
+        /// `prev` functions provided by the `Node` type.
+        pub const EntryIterator = struct {
+            node: ?*Node,
+
+            pub fn next(self: *EntryIterator) ?Entry {
+                if (self.node) |cur| {
+                    const result = Entry{
+                        .key_ptr = &(cur.key),
+                        .value_ptr = &(cur.value),
+                    };
+                    self.node = self.node.next();
+                    return result;
+                }
+                return null;
+            }
+
+            pub fn peek(self: EntryIterator) ?Entry {
+                if (self.node) |n| {
+                    return Entry{
+                        .key_ptr = &(n.key),
+                        .value_ptr = &(n.value),
+                    };
+                } else {
+                    return null;
+                }
+            }
+        };
+
+        /// A container for a copy of the key and value of a red-black tree.
+        pub const KV = struct {
+            key: K,
+            value: V,
+        };
+        /// A forward iterator over the key-value pairs in a red-black tree
+        ///
+        /// For more advanced iteration over red-black trees, we
+        /// suggest that the programmer just use the `next` and
+        /// `prev` functions provided by the `Node` type.
+        pub const KVIterator = struct {
+            node: ?*Node,
+
+            pub fn next(self: *KVIterator) ?KV {
+                if (self.node) |cur| {
+                    const result: KV = .{
+                        .key = cur.key,
+                        .value = cur.value,
+                    };
+                    self.node = self.node.next();
+                    return result;
+                }
+                return null;
+            }
+
+            pub fn peek(self: KVIterator) ?KV {
+                if (self.node) |n| {
+                    return .{
+                        .key = n.key,
+                        .value = n.value,
+                    };
+                } else {
+                    return null;
+                }
+            }
+        };
+
+        /// Used to specify the location of an empty space in the tree.
+        ///
+        /// That is, this type represent an empty location in the tree where a new
+        /// value can be inserted.
         pub const Location = struct {
             parent: *Node,
             direction: Direction,
         };
+        /// Represents either a node in the tree, or a space where a node can be
+        /// inserted
         pub const FindNodeOrLocationResultTag = enum {
             node,
             location,
@@ -225,10 +303,10 @@ pub fn RBTreeImplementation(
 
         /// Inserts a given node into a non-empty tree and rebalances.
         ///
-        /// Notice that the tree is remains sorted if and only if adding `new_node`
+        /// Notice that the tree remains sorted if and only if adding `new_node`
         /// to the tree in the given location keeps the tree in sorted order.
         ///
-        /// This function assumes that `location` described a null child of a node
+        /// This function assumes that `location` described a `null` child of a node
         /// in the tree with the given root.
         ///
         /// Notice that `root_ref` is of type `**Node` and not `*?*Node` like in
@@ -248,6 +326,9 @@ pub fn RBTreeImplementation(
         ///     Implementation.insertNode(root_ref, ctx, node, location);
         /// }
         /// ```
+        ///
+        /// The intention with this design is to ensure that the programmer
+        /// does not call the wrong function.
         pub fn insertNode(
             /// A reference to the root of the tree
             ///
@@ -269,13 +350,14 @@ pub fn RBTreeImplementation(
             location: Location,
         ) void {
             // set all the relevant fields of the node and its parent
+            // the new node will start out as red
             location.parent.setChild(location.direction, new_node);
             new_node.setParent(location.parent);
             new_node.setColor(.red);
             new_node.left = null;
             new_node.right = null;
 
-            // update any counts if we are counting in subtrees
+            // update any counts if we are storing subtrees counts
             if (options.store_subtree_sizes) {
                 new_node.subtree_size = 1;
 
@@ -479,6 +561,80 @@ pub fn RBTreeImplementation(
             }
         }
 
+        /// Moves the contents of a node to a new location.
+        ///
+        /// **Note:** calling this function will invalidate any iterator which has a
+        /// reference to the node `source`.
+        ///
+        /// This function is provided in order to enable a particular kind of
+        /// memory management optimisation. In particular, suppose that the
+        /// programmer had an arena of preallocated nodes. If the programmer
+        /// then wanted to reduce the size of the arena, then they would have
+        /// to ensure that at least one chunk of the arena does not have any
+        /// nodes in it. This function allows the programmer to move any nodes
+        /// out of such chunk so that it can be freed.
+        ///
+        /// Moreover, this function would also allow the programmer to move the
+        /// storage of all nodes to a minimal number of pages of memory, thus
+        /// providing potential performance advantages with memory cacheing.
+        ///
+        /// That is, this function can be used to defragment the used memory.
+        pub fn moveNodeByCopy(
+            root_ref: **Node,
+            destination: *Node,
+            source: *const Node,
+        ) void {
+            if (source == destination) return;
+
+            if (source.getDirection()) |dir| {
+                source.getParent().?.setChild(dir, destination);
+            } else {
+                root_ref.* = destination;
+            }
+
+            if (source.left) |left| {
+                left.setParent(destination);
+            }
+
+            if (source.right) |right| {
+                right.setParent(destination);
+            }
+
+            destination.* = source.*;
+        }
+
+        /// This function swaps the storage of two nodes
+        ///
+        /// **Note:** calling this function will invalidate any iterator which has a
+        /// reference to the node `source`.
+        ///
+        /// Similar to the funciton `moveNodeByCopy`, this function is provided to
+        /// enable potential optimisations. In particular, Suppose that the programmer is
+        /// moving nodes from one tree to another (in order to avoid unecesary
+        /// deallocations and allocations). For example, the programmer might want to do this
+        /// if they have one tree of 'sleeping' tasks, and another tree of 'running' tasks.
+        /// This function would enable the programmer to ensure that nodes of the same tree
+        /// are stored alongside each other.
+        pub fn swapNodeStorage(
+            /// The root of the tree to which `node1` belongs
+            root_ref1: **Node,
+            node1: *Node,
+            /// The root of the tree to which `node2` belongs
+            root_ref2: **Node,
+            node2: *Node,
+        ) void {
+            if (node1 == node2) return;
+
+            var tmp1: Node = undefined;
+            var tmp2: Node = undefined;
+
+            moveNodeByCopy(root_ref1, &tmp1, node1);
+            moveNodeByCopy(root_ref2, &tmp2, node2);
+
+            moveNodeByCopy(root_ref1, node2, &tmp1);
+            moveNodeByCopy(root_ref2, node1, &tmp2);
+        }
+
         /// Swaps the position of two nodes in the tree.
         ///
         /// This function only modifies the parents, children and potentially the root.
@@ -581,6 +737,8 @@ pub fn RBTreeImplementation(
         ///   r = new_subtree_root
         ///   s = swapped subtree
         /// ```
+        ///
+        /// Note that this function does not call any callbacks.
         pub fn rotateNode(
             root_ref: **Node,
             node: *Node,

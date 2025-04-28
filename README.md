@@ -6,9 +6,51 @@ An extensible implementation of augmented red-black trees in the Zig programming
 
 For full documentation see https://alexbishop.github.io/zig-rbtree
 
-For instructions on how to use this package in your code, see the [Releases page](https://github.com/alexbishop/zig-rbtree/releases).
+**Quickstart:** For instructions on how to use this package in your code, see the [Releases page](https://github.com/alexbishop/zig-rbtree/releases).
 
 This library is released under the MIT license (you should have a copy of the LICENSE file with this source code).
+
+TODO before version 1.0.0:
+
+ - [ ] add more tests including some new doctests as example usage
+ - [ ] allow subtree size to be of any integer type (not just `usize`)
+ - [ ] add an option to cache the first and last element of a red-black tree so that they can be retrieved in O(1) time
+
+## New in this version
+
+All functions of the form `*Context` in types created by `RBTreeUnmanaged` have been renamed as `*WithContext`.
+This is to reduce ambiguity when calling functions like `getContext`.
+
+Added some new functions `moveNodeByCopy` and `swapNodeStorage` to `RBTreeImplementation`.
+These function enable some more advanced usage.
+
+Updated the implementation of `initFromSortedKVIterator` in `RBTreeUnmanaged` so that it no longer uses recursion.
+Moreover, this function now issues a compile error if the input iterator does not match the desired iterator interface.
+
+Added function `isIterator` to `rbtree.meta` in order to check if a given value is an iterator.
+
+Updates the default sort in `rbtree.meta.order` so that it now supports pointer dereferences with a comptime limit on
+the number of nested pointer dereferences.
+There is also a new function `rbtree.defaultOrderGeneric` which also takes in a pointer depth.
+
+## Alternatives
+
+If you don't like this implementation, here are some alternatives which either solve the same problem or a similar problem:
+
+  - [Haeryu/rbtree](https://github.com/Haeryu/rbtree):
+        stores a red-black tree in a array
+  - [Zig compiler implementation](https://github.com/ziglang/std-lib-orphanage/blob/master/std/rb.zig):
+        the now orphaned implementation which appeared in the Zig compiler
+  - [pmkap/zig-btreemap](https://github.com/pmkap/zig-btreemap):
+        an implementation of B-trees which is another balanced tree data structure
+  - [judofyr/rgb-tree](https://github.com/judofyr/rgb-tree):
+        an implementation of rgb trees with arbitrarily many colours
+  - [Linux Kernel](https://github.com/torvalds/linux/blob/master/lib/rbtree.c):
+        since you can use C code in Zig, you could use the red-black tree implementation in the Linux kernel
+  - [C++ std::map](https://cplusplus.com/reference/map/map/):
+       You could write a C wrapper around the C++ library and use it in Zig 
+
+The above list is non-exhaustive. There are likely many other alternatives out there.
 
 ## Tests
 
@@ -48,53 +90,6 @@ const KVSliceIterator = struct {
 Thus, `KVSliceIterator` and `*KVSliceIterator` are both valid values for `SortedKVIterator`.
 
 If `SortedKVIterator` is a pointer (and the function does not return an error), then the given iterator will point to the entry which lies immediately after the last entry that was added to the red-black tree.
-
-### Added methods
-
-`RBTreeUnmanaged` now has the following additional initialisations:
-
-```zig
-pub fn initFromSortedKVIterator(
-    SortedKVIterator: type,
-    allocator: Allocator,
-    size: usize,
-    iterator: SortedKVIterator,
-) !Self
-
-pub fn initFromSortedKVSlice(
-    allocator: Allocator,
-    slice: []const KV,
-) !Self
-
-pub fn initFromSortedSlice(
-    allocator: Allocator,
-    slice: []const K,
-) !Self
-```
-
-Similarly, `RBTree` has the following new methods.
-
-```zig
-pub fn initFromSortedKVIterator(
-    SortedKVIterator: type,
-    allocator: Allocator,
-    ctx: Context,
-    size: usize,
-    iterator: SortedKVIterator,
-) !Self
-
-pub fn initFromSortedKVSlice(
-    allocator: Allocator,
-    ctx: Context,
-    slice: []const KV,
-) !Self
-
-pub fn initFromSortedSlice(
-    allocator: Allocator,
-    ctx: Context,
-    slice: []const K,
-) !Self
-```
 
 ## 1. Examples
 

@@ -3,7 +3,7 @@
 //! This library contains an implementation of augmented red-black tree
 //! with 3 layers of abstraction.
 //!
-//! This is the documentation for version 1.0.0 of the library.
+//! This is the documentation for version 0.3.0 of the library.
 //! See the [repo on GitHub](https://github.com/alexbishop/zig-rbtree) for
 //! the code.
 //!
@@ -12,13 +12,13 @@
 //! ### Quickstart
 //!
 //! For install instructions, see the
-//! [GitHub release](https://github.com/alexbishop/zig-rbtree/releases/tag/v1.0.0).
+//! [GitHub release](https://github.com/alexbishop/zig-rbtree/releases/tag/v0.3.0).
 //!
 //! For beginners and general use, we recommend using the function `DefaultRBTree` or
 //! `DefaultRBTreeUnmanaged` to construct your red-black trees.
 //!
 //! An example of the usage of `DefaultRBTree` is given in the
-//! [GitHub release](https://github.com/alexbishop/zig-rbtree/releases/tag/v1.0.0).
+//! [GitHub release](https://github.com/alexbishop/zig-rbtree/releases/tag/v0.3.0).
 //!
 //! For an example of an augmented red-black tree, see `example/augmented_example.zig`
 //! in the source for this library which you can find
@@ -28,8 +28,8 @@
 //!
 //!   1. Multiple layers of abstraction for different use cases
 //!   2. Non-recursive implementation of search, insert and delete *(so we don't blow up your stack)*
-//!   3. Create a red-black tree from a sorted list in `O(1)` time without the need for rotates, recolours or swaps
-//!      *(note that this feature is implemented using recursion)*
+//!   3. Create a red-black tree from a sorted list in `O(n)` time without the need for rotates, recolours or swaps.
+//!      This implementation does not use recursion.
 //!   4. Takes order functions which take a context argumanet so you can change order behaviour at runtime
 //!      *(this feature is useful if your order depends on some user input)*
 //!   5. Possibility to make an augmented red-black tree with arbitrary additional data
@@ -116,7 +116,7 @@ pub fn DefaultRBTree(
     /// you want your red-black tree to implement a set.
     comptime V: type,
 ) type {
-    return RBTree(K, V, void, defaultOrder(K, 1), .{}, .{});
+    return RBTree(K, V, void, defaultOrder(K), .{}, .{});
 }
 
 /// An unmanaged red-black tree with the default order, and no augmentation.
@@ -129,7 +129,7 @@ pub fn DefaultRBTreeUnmanaged(
     /// you want your red-black tree to implement a set.
     comptime V: type,
 ) type {
-    return RBTreeUnmanaged(K, V, void, defaultOrder(K, 1), .{}, .{});
+    return RBTreeUnmanaged(K, V, void, defaultOrder(K), .{}, .{});
 }
 
 /// The basic methods to implement a red-black tree with the default order
@@ -143,7 +143,7 @@ pub fn DefaultRBTreeImplementation(
     /// you want your red-black tree to implement a set.
     comptime V: type,
 ) type {
-    return RBTreeImplementation(K, V, void, defaultOrder(K, 1), .{}, .{});
+    return RBTreeImplementation(K, V, void, defaultOrder(K), .{}, .{});
 }
 
 pub const isNode = node.isNode;
@@ -226,7 +226,7 @@ pub fn addVoidContextToOrder(
 }
 
 /// The default ordering of two key which can be used by the library.
-pub fn defaultOrder(
+pub fn defaultOrderGeneric(
     /// The type of key which is beign compared `meta.order`
     /// for more information on valid values of `K`.
     comptime K: type,
@@ -238,4 +238,13 @@ pub fn defaultOrder(
         }
     };
     return tmp.do;
+}
+
+/// The default ordering of two key which can be used by the library.
+pub fn defaultOrder(
+    /// The type of key which is beign compared `meta.order`
+    /// for more information on valid values of `K`.
+    comptime K: type,
+) fn (_: void, lhs: K, rhs: K) std.math.Order {
+    return defaultOrderGeneric(K, 1);
 }

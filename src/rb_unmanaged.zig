@@ -6,6 +6,8 @@ const Order = std.math.Order;
 
 const Impl = @import("./rb_implementation.zig");
 
+const isIterator = @import("./meta.zig").isIterator;
+
 pub const Options = Impl.Options;
 pub const Callbacks = Impl.Callbacks;
 
@@ -92,15 +94,24 @@ pub fn RBTreeUnmanaged(
         pub const Direction = implementation.Direction;
         pub const Node = implementation.Node;
 
-        pub const KV = struct {
-            key: K,
-            value: V,
-        };
+        pub const KV = implementation.KV;
 
         /// A pointer to the root of the red-black tree
         root: ?*Node,
+        /// **Don't** use this value to get the size of the tree.
+        /// For trees with a subtree count, this field may be of type
+        /// void.
+        ///
         /// To get the size of the tree, call the function `count` instead
         size: if (options.store_subtree_sizes) void else usize,
+
+        /// Gets the root of the tree.
+        ///
+        /// This function is provided such that the interface for
+        /// `RBTreeUnmanaged` resembles the interface for `RBTree`
+        pub fn getRoot(self: Self) ?*Node {
+            return self.root;
+        }
 
         /// Initialises an empty red-black tree.
         pub fn init() Self {
@@ -117,6 +128,27 @@ pub fn RBTreeUnmanaged(
             }
         }
 
+        pub const EntryIterator = implementation.EntryIterator;
+        /// Provides a forward iterator over the entries in a red-black tree
+        ///
+        /// For more advanced iteration over red-black trees, we
+        /// suggest that the programmer just use the `next` and
+        /// `prev` functions provided by the `Node` type.
+        pub fn iterator(self: Self) EntryIterator {
+            return .{ .node = self.findMin() };
+        }
+
+        pub const KVIterator = implementation.KVIterator;
+
+        /// Provides a forward iterator over the key-value pairs in a red-black tree
+        ///
+        /// For more advanced iteration over red-black trees, we
+        /// suggest that the programmer just use the `next` and
+        /// `prev` functions provided by the `Node` type.
+        pub fn kvIterator(self: Self) KVIterator {
+            return KVIterator{ .node = self.findMin() };
+        }
+
         /// The error union used by `initFromSortedKVIterator`
         pub const InitFromSortedError = Allocator.Error || error{
             /// This error is returned by `initFromSortedKVIterator` if the provided
@@ -124,6 +156,12 @@ pub fn RBTreeUnmanaged(
             ReachedEndOfIterator,
         };
 
+        /// Some parts of this code store a singly linked list in the
+        /// Nodes of a tree. In particular, the next node of the list is
+        /// given by the `right` node pointer.
+        ///
+        /// This function goes through every node in such a linked list
+        /// and sets their right node pointer to `null`.
         fn clearLinkedList(head_node: *Node) void {
             var current: ?*Node = head_node;
             while (current) |cur| {
@@ -133,40 +171,7 @@ pub fn RBTreeUnmanaged(
             }
         }
 
-        fn invertColor(color: NodeColor) NodeColor {
-            return switch (color) {
-                .red => .black,
-                .black => .red,
-            };
-        }
-
-        fn fillSubtreeCounts(root: *Node) void {
-            var current: ?*Node = root;
-            while (current) |cur| {
-                var total: usize = 1;
-
-                if (cur.left) |left| {
-                    if (left.subtree_size == 0) {
-                        current = left;
-                        continue;
-                    }
-                    total += left.subtree_size;
-                }
-
-                if (cur.right) |right| {
-                    if (right.subtree_size == 0) {
-                        current = right;
-                        continue;
-                    }
-                    total += right.subtree_size;
-                }
-
-                cur.subtree_size = total;
-                current = cur.getParent();
-            }
-        }
-
-        /// Constructs a red-black tree from a sorted list
+        /// Constructs a red-black tree from a sorted list in `O(size)` time.
         ///
         /// The purpose of this method is to provide a way of initialising a
         /// red-black tree from a sorted list without the need for swaps, or
@@ -220,38 +225,74 @@ pub fn RBTreeUnmanaged(
             /// an error of type `InitSubtreeFromSortedError.ReachedEndOfIterator` will
             /// be returned. Note that cleanup is done before returning an error,
             /// so you don't have to worry about memory leaks.
-            iterator: SortedKVIterator,
+            sorted_iterator: SortedKVIterator,
         ) InitFromSortedError!Self {
             comptime {
-                switch (@typeInfo(SortedKVIterator)) {
-                    .@"struct" => {},
-                    .pointer => |p| {
-                        switch (@typeInfo(p)) {
-                            .@"struct" => {},
-                            else => {
-                                @compileError(
-                                    \\  Invalid value for type `SortedKVIterator`
-                                    \\      must either be the type of an iterator which returns value
-                                    \\      of type `KV` or the type of a pointer to such an object
-                                );
-                            },
-                        }
-                    },
-                    else => {
-                        @compileError(
-                            \\  Invalid value for type `SortedKVIterator`
-                            \\      must either be the type of an iterator which returns value
-                            \\      of type `KV` or the type of a pointer to such an object
-                        );
-                    },
+                const iterator_is_okay =
+                    switch (@typeInfo(SortedKVIterator)) {
+                        .@"struct" => isIterator(KV, SortedKVIterator),
+                        .pointer => |p| switch (@typeInfo(p)) {
+                            .@"struct" => p.size == .one and !p.is_const and isIterator(KV, SortedKVIterator),
+                            else => false,
+                        },
+                        else => false,
+                    };
+
+                if (!iterator_is_okay) {
+                    @compileError("SortedKVIterator must be an iterator which returns KV types");
                 }
             }
+            // special case for when the size is zero
             if (size == 0) return init();
 
+            // This implementation works in the following steps
+            //
+            //  1. construct the tree, but don't fill in any keys or values
+            //  2. if we are storing subree counts, then fill them in in a postfix order
+            //  3. fill in the keys and values on an in-order traversal
+            //
+            // We generate the tree level by level. At each point of this process,
+            // the leaves of the tree will form a singly lined list with their `right`
+            // subtree pointers. For example, after generating the third level, the tree
+            // will look like the following:
+            //
+            //                      _ root _
+            //                     /        \
+            //                    a          b
+            //                  /  \        /  \
+            //              head -> c  ->  d -> e -> null
+            //
+            //  Here `head` will eventually correspind to the smallest value in the
+            //  red-black tree.
+            //  We node here that:
+            //
+            //      head.right = c
+            //      c.right = d
+            //      d.right = e
+            //      e.right = null
+            //
+            //  is our singly linked list of leaf nodes.
+            //
+            //  To remove the singly linked list, we only need to call the function
+            //
+            //      clearLinkedList(head)
+            //
+            //  which would result in a tree of the form
+            //
+            //                      _ root _
+            //                     /        \
+            //                    a          b
+            //                  /  \       /  \
+            //              head    c     d    e
+            //
+            //  which is a valid binary tree.
+
+            // Compute the colour that the root should be for the
+            // deepest nodes to be coloured red
             var current_level_color: NodeColor = brk: {
                 // the depth of the tree
                 const depth: usize = @typeInfo(usize).int.bits - @clz(size);
-                // we want the leaves to be red, so we set the color as follows
+                // we want the deepest nodes to be red, so we set the colour as follows
                 break :brk switch (depth % 2) {
                     0 => .black,
                     1 => .red,
@@ -260,26 +301,58 @@ pub fn RBTreeUnmanaged(
             };
 
             const root: *Node = try allocator.create(Node);
-            root.* = Node.init(.{
-                .color = current_level_color,
-                .subtree_size = if (options.store_subtree_sizes) 0 else void{},
-            });
-            var head_of_list: *Node = root;
+            root.* = Node.init(.{ .color = current_level_color });
+            var head_of_leaf_list: *Node = root;
 
+            // on an error, deallocate all the tree
             errdefer {
-                clearLinkedList(head_of_list);
+                // remove the linked list of leaves such that
+                // the tree is now a valid tree
+                clearLinkedList(head_of_leaf_list);
+                // deallocate the tree
                 deinitSubtree(allocator, root);
             }
 
-            // construct the levels of the tree one by one
+            // Iterately generate the levels of the tree by moving through
+            // the single linked list of leaves to add 2 children to
+            // each of the leaf nodes until we have the correct number
+            // of nodes
+            //
+            // For example
+            //                      ____ root _____
+            //                     /               \
+            //                    a ___             b
+            //                  /      \           / \
+            //                 c        d         e   f -> null
+            //               /  \      /  \      /   /
+            //              g -> h -> i -> j -> k --^
+            //
+            // That is,
+            //
+            //      g.right = h
+            //      h.right = i
+            //      i.right = j
+            //      j.right = k
+            //      k.right = f
+            //      f.right = null
+            //
+            //      // to remove ambiguity, we also say that
+            //      f.left = null
+            //
+            //  with
+            //
+            //      head_of_leaf_list = g
+            //
+            //  would be the state of the data structure after running the
+            //  following block of code with `size = 12`.
             {
                 var remaining_size = size - 1;
 
                 outer: while (remaining_size > 0) {
-                    current_level_color = invertColor(current_level_color);
+                    current_level_color = current_level_color.invert();
 
                     var previous_list_pos: ?*Node = null;
-                    var current_list_pos: ?*Node = head_of_list;
+                    var current_list_pos: ?*Node = head_of_leaf_list;
 
                     var is_first_of_level: bool = true;
 
@@ -292,11 +365,10 @@ pub fn RBTreeUnmanaged(
 
                         if (remaining_size == 1) {
                             const new_node: *Node = try allocator.create(Node);
-                            if (is_first_of_level) head_of_list = new_node;
+                            if (is_first_of_level) head_of_leaf_list = new_node;
                             new_node.* = Node.init(.{
                                 .parent = cur,
                                 .color = current_level_color,
-                                .subtree_size = if (options.store_subtree_sizes) 0 else void{},
                             });
                             // add this node to its new position
                             if (previous_list_pos) |prev| {
@@ -311,11 +383,10 @@ pub fn RBTreeUnmanaged(
                         // add the left node
                         {
                             const new_left_node: *Node = try allocator.create(Node);
-                            if (is_first_of_level) head_of_list = new_left_node;
+                            if (is_first_of_level) head_of_leaf_list = new_left_node;
                             new_left_node.* = Node.init(.{
                                 .parent = cur,
                                 .color = current_level_color,
-                                .subtree_size = if (options.store_subtree_sizes) 0 else void{},
                             });
                             if (previous_list_pos) |prev| {
                                 prev.right = new_left_node;
@@ -332,7 +403,6 @@ pub fn RBTreeUnmanaged(
                             new_right_node.* = Node.init(.{
                                 .parent = cur,
                                 .color = current_level_color,
-                                .subtree_size = if (options.store_subtree_sizes) 0 else void{},
                             });
                             if (previous_list_pos) |prev| {
                                 prev.right = new_right_node;
@@ -349,15 +419,29 @@ pub fn RBTreeUnmanaged(
                 }
             }
 
-            // remove the linked list
-            clearLinkedList(head_of_list);
+            // remove the linked list such that the tree it is
+            // now a valid binary tree
+            //
+            // For example, if `size = 12`, then the data structure after
+            // the following function call will be 
+            //
+            //                      ____ root _____
+            //                     /               \
+            //                    a ___             b
+            //                  /      \           / \
+            //                 c        d         e   f
+            //               /  \      /  \      /
+            //              g    h    i    j    k
+            //
+            clearLinkedList(head_of_leaf_list);
 
-            // fill in the tree
+            // Fill in the keys and values of the tree by moving
+            // in an in-order traversal over the tree
             {
                 // we need to take a copy of iterator as we need for it to
                 // be non-const.
-                var iterator_var = iterator;
-                var current_tree_pos: ?*Node = head_of_list;
+                var iterator_var = sorted_iterator;
+                var current_tree_pos: ?*Node = head_of_leaf_list;
                 while (current_tree_pos) |node| {
                     if (iterator_var.next()) |kv| {
                         node.key = kv.key;
@@ -369,8 +453,18 @@ pub fn RBTreeUnmanaged(
                 }
             }
 
+            // We are now ready to finish up the tree and return
             if (options.store_subtree_sizes) {
-                fillSubtreeCounts(root);
+                {
+                    // fill in the subtree counts by moving over the 
+                    // tree in an postfix order
+                    var current: ?*Node = head_of_leaf_list;
+                    while (current) |c| : (current = c.postfixNext()) {
+                        c.subtree_size = 1;
+                        if (c.left) |l| c.subtree_size += l.subtree_size;
+                        if (c.right) |r| c.subtree_size += r.subtree_size;
+                    }
+                }
                 return .{
                     .root = root,
                     .size = void{},
@@ -441,7 +535,7 @@ pub fn RBTreeUnmanaged(
         /// Initialises a red-black tree from a slice of sorted keys.
         ///
         /// Note that values associated to each node in the returned tree
-        /// will be initialised from `undefined`. This function is perfect
+        /// will be initialised from `undefined`. This function is useful
         /// if the value type of your tree is `void`. For example, if your
         /// tree was constructed from the type
         ///
@@ -478,6 +572,8 @@ pub fn RBTreeUnmanaged(
             no_clobber,
             /// Overwrite the value of the node, but leave the key unchanged
             clobber_value_only,
+            /// Overwrite the key of the node, but leave the value unchanged
+            clobber_key_only,
             /// Overwrite both the key and the value in the node
             clobber_key_and_value,
         };
@@ -536,6 +632,20 @@ pub fn RBTreeUnmanaged(
                                 };
                                 // overrride the value
                                 node.value = value;
+                                // return
+                                return InsertResult{
+                                    .found_existing = found,
+                                    .clobbered = true,
+                                    .node = node,
+                                };
+                            },
+                            .clobber_key_only => {
+                                const found = KV{
+                                    .key = node.key,
+                                    .value = node.value,
+                                };
+                                // overrride the value
+                                node.key = key;
                                 // return
                                 return InsertResult{
                                     .found_existing = found,
@@ -608,7 +718,7 @@ pub fn RBTreeUnmanaged(
             }
         }
 
-        /// Inserts a key/value pair into the tree.
+        /// Inserts a key-value pair into the tree.
         ///
         /// This function requires that `Context` is a zero size type like `void` for example.
         pub fn insert(
@@ -713,7 +823,28 @@ pub fn RBTreeUnmanaged(
             }
         }
 
-        /// Finds the node which corresponds to the largest entry which compares less than or equal to the given key.
+        /// Gets the node which would appear first in a postfix traversal of
+        /// the tree.
+        pub fn firstInPostfix(self: Self) ?*Node {
+            const leftmost = self.findMin();
+            if (leftmost) |n| {
+                if (n.right) |r| {
+                    return r;
+                } else {
+                    return n;
+                }
+            }
+            return null;
+        }
+
+        /// Gets the node that would appear last in a postfix traversal of
+        /// the tree, that is, it gets the root vertex.
+        pub fn lastInPostfix(self: Self) ?*Node {
+            return self.getRoot();
+        }
+
+        /// Finds the node which corresponds to the largest entry
+        /// which compares less than or equal to the given key.
         pub fn findLowerBoundWithContext(
             self: Self,
             ctx: Context,
@@ -832,11 +963,7 @@ pub fn RBTreeUnmanaged(
             return self.findWithContext(undefined, key);
         }
 
-        /// Similar to `KV` except stored references to the key and value
-        pub const Entry = struct {
-            key_ptr: *K,
-            value_ptr: *V,
-        };
+        pub const Entry = implementation.Entry;
 
         /// Attempts to find an entry in the tree
         ///
@@ -1000,6 +1127,7 @@ pub fn RBTreeUnmanaged(
         // Insert functions
         // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
+        /// the return type of `getOrPutValueWithContext` and `getOrPutWithContext`
         pub const GetOrPutResult = struct {
             key_ptr: *K,
             value_ptr: *V,
@@ -1395,6 +1523,7 @@ pub fn RBTreeUnmanaged(
             return result;
         }
 
+        /// A support function which deallocates a tree
         fn deinitSubtree(allocator: Allocator, subtree_root: ?*Node) void {
             // this removes all nodes in in-order succession
             var current_node = subtree_root;
@@ -1561,7 +1690,7 @@ pub fn RBTreeUnmanaged(
                         }
                     }
 
-                    // at this point the succssor is our right child
+                    // at this point the successor is our right child
 
                     const r = node.right.?;
 

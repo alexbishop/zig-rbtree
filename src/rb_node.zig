@@ -1,26 +1,32 @@
 //! This file defines red-black tree nodes.
 const std = @import("std");
 
-/// Used to represent the colour of a node in the red-black tree structure.
+/// Used to represent the colour of a node in the red-black tree.
 ///
 /// This type is backed by a `u1` as, by default, our implementation stores
 /// the colour of a node as the lowest order bit of the parent pointer.
 pub const NodeColor = enum(u1) {
     red = 0,
     black = 1,
+    pub fn invert(node_color: NodeColor) NodeColor {
+        return switch (node_color) {
+            .red => .black,
+            .black => .red,
+        };
+    }
 };
 
 /// Corresponds to the left/right subtree of a node.
 ///
-/// This type is provided to simplify our implementation.
+/// This type is provided to simplify our implementation of red-black trees.
 pub const Direction = enum {
     left,
     right,
     pub fn invert(direction: Direction) Direction {
-        switch (direction) {
-            .left => return .right,
-            .right => return .left,
-        }
+        return switch (direction) {
+            .left => .right,
+            .right => .left,
+        };
     }
 };
 
@@ -29,7 +35,7 @@ pub const Options = struct {
     /// Indicates if each node of the tree should maintain a count of the
     /// number of elements in its associated subtree
     store_subtree_sizes: bool = false,
-    /// Indicates if the color of a red-black tree node should be stored
+    /// Indicates if the colour of a red-black tree node should be stored
     /// as the least-significant bit of the parent pointer
     ///
     /// We allow for this feature to be disabled as it may cause issues on
@@ -43,9 +49,9 @@ pub const Options = struct {
     /// additional_data: options.AdditionalNodeData
     /// ```
     ///
-    /// This feature is provided as it is usually required to implement augmented
-    /// red-black trees. In partiuclar, such a field would be used to store the
-    /// additional data of the augmented tree.
+    /// This feature is provided as it is usually required in order to implement
+    /// augmented red-black trees. In partiuclar, such a field would be used to
+    /// store the additional data of the augmented tree.
     AdditionalNodeData: type = void,
 };
 
@@ -80,6 +86,7 @@ pub fn Node(
     /// The type of keys stored in the node
     comptime K: type,
     /// The type of the values stored in the node, this can be `void`
+    /// if you do not need to store any values
     comptime V: type,
     /// Some options used to customise the node.
     ///
@@ -113,9 +120,29 @@ pub fn Node(
             }
         }
 
-        /// A hidden tag used to indicate that this type was created using the  `Node` function.
+        /// A hidden tag used to indicate that this type was created using the `Node` function.
         const tag = NodeTag;
         /// The arguments which were passed to the `Node` function to create this type.
+        ///
+        /// These values are provided in order to enable metaprogramming.
+        /// For example:
+        ///
+        /// ```zig
+        /// fn extractUsize(node: anytype) ?usize {
+        ///     if (rbtree.isNode(node)) {
+        ///         if (@TypeOf(node).args.K == usize) {
+        ///             return node.key;
+        ///         } else {
+        ///             return null;
+        ///         }
+        ///     } else {
+        ///         return null;
+        ///     }
+        /// }
+        /// ```
+        ///
+        /// The above code will extract a key of type `usize`, or will return `null` if the
+        /// key of the node is not of type usize.
         pub const args = .{
             .K = K,
             .V = V,
@@ -219,7 +246,7 @@ pub fn Node(
             }
         }
 
-        /// Gets the color of the node.
+        /// Gets the colour of the node.
         ///
         /// You should always use this method instead of reading the
         /// `impl_parent_and_color` or `impl_color` fields directly.
@@ -231,7 +258,7 @@ pub fn Node(
             }
         }
 
-        /// Sets the color of the node.
+        /// Sets the colour of the node.
         ///
         /// You should always use this method instead of modifying the
         /// `impl_parent_and_color` or `impl_color` fields directly.
@@ -243,10 +270,9 @@ pub fn Node(
             }
         }
 
-        /// Checks if the node is the left of right child of its parent.
+        /// Checks if the node is the left or right child of its parent.
         ///
-        /// For the root node, this function returns `null`.
-        /// Note that this function assumes that the node is a part of a valid binary tree.
+        /// If this node does not have a parent, then this function returns `null`.
         pub fn getDirection(self: *const Self) ?Direction {
             if (self.getParent()) |parent| {
                 if (parent.left == self) {
@@ -262,7 +288,7 @@ pub fn Node(
         /// A helper function to get the children of a node
         pub fn getChild(
             self: Self,
-            /// Specified which child to get, i.e., the left or the right
+            /// Specified which child to get, i.e., the left or the right child
             direction: Direction,
         ) ?*Self {
             switch (direction) {
@@ -274,7 +300,7 @@ pub fn Node(
         /// A helper function to set the value of a particular child of the node.
         pub fn setChild(
             self: *Self,
-            /// The child to set, i.e., the left or the right child.
+            /// The child to set, i.e., the left or the right child
             direction: Direction,
             /// The new value of the child
             new_child: ?*Self,
@@ -307,6 +333,76 @@ pub fn Node(
                 current = n;
             }
             return current;
+        }
+
+        /// Obtains the node which would occur after this one in a postfix order
+        /// (otherwise known as reverse polish order).
+        ///
+        /// This function is given as it is required in some other parts of the
+        /// code, in particular, it is used in the implementation of the function
+        /// `initFromSortedKVIterator` in the type `RBTreeUnmanaged`.
+        ///
+        /// For those who are unfamiliar with postfix order, it corresponds to
+        /// the order in which one would print nodes of a binary tree in
+        /// the following pseudocode
+        ///
+        /// ```zig
+        /// fn printInPostfixOrder(node: *const Node) void {
+        ///     // print the left subtree if we have one
+        ///     if (node.left) |left| printInPostfixOrder(left);
+        ///
+        ///     // print the right subtree if we have one
+        ///     if (node.right) |right| printInPostfixOrder(right);
+        ///
+        ///     // print this node
+        ///     printNode(node);
+        /// }
+        /// ```
+        ///
+        /// Note that even though the above is pseudocode, you could actually
+        /// get it to run in Zig if you define the function `printNode`.
+        pub fn postfixNext(self: *const Self) ?*Self {
+            if (self.getParent()) |parent| {
+                if (parent.right == self) {
+                    return parent;
+                } else if (parent.right) |right| {
+                    const leftmost = right.getLeftmostInSubtree();
+                    if (leftmost.right) |right_of_leftmost| {
+                        return right_of_leftmost;
+                    } else {
+                        return leftmost;
+                    }
+                } else {
+                    return parent;
+                }
+            } else {
+                return null;
+            }
+        }
+
+        /// Obtains the node which would occur after this one in a postfix order
+        /// (otherwise known as reverse polish order).
+        ///
+        /// This function is provided as a companion to the function `postfixNext`
+        ///
+        /// If the programmer is unfamiliar with postfix notation, then they should
+        /// look at the documentation of `postfixNext`
+        pub fn postfixPrev(self: *const Self) ?*Self {
+            if (self.right) |right| {
+                return right;
+            } else if (self.left) |left| {
+                return left;
+            } else {
+                var current: *const Node = self;
+                while (current.getDirection()) |dir| {
+                    if (dir == .right and current.getParent().?.left != null) {
+                        return current.getParent().?.left.?;
+                    } else {
+                        current = current.getParent().?;
+                    }
+                }
+                return null;
+            }
         }
 
         /// Obtains the next node in an in-order traversal,

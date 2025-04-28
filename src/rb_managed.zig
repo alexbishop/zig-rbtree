@@ -90,11 +90,15 @@ pub fn RBTree(
 
         /// An instance of an unmanaged red-black tree which we are
         /// now managing in this type
-        managed: UnmanagedType,
+        unmanaged: UnmanagedType,
         /// The context that will be passed to the `order` function
         ctx: Context,
         /// The allocator that is used to create and distory nodes
         allocator: Allocator,
+
+        pub fn getRoot(self: Self) ?*Node {
+            return self.unmanaged.getRoot();
+        }
 
         /// initialises an empty red-black tree
         pub fn init(
@@ -102,10 +106,20 @@ pub fn RBTree(
             ctx: Context,
         ) Self {
             return Self{
-                .managed = UnmanagedType.init(),
+                .unmanaged = UnmanagedType.init(),
                 .ctx = ctx,
                 .allocator = allocator,
             };
+        }
+
+        pub const EntryIterator = UnmanagedType.EntryIterator;
+        pub fn iterator(self: Self) EntryIterator {
+            return self.unmanaged.iterator();
+        }
+
+        pub const KVIterator = UnmanagedType.KVIterator;
+        pub fn kvIterator(self: Self) KVIterator {
+            return self.unmanaged.kvIterator();
         }
 
         /// The error union used for `initFromSortedKVIterator`
@@ -120,11 +134,6 @@ pub fn RBTree(
         /// Note that this function returns an error
         /// `InitSubtreeFromSortedError.ReachedEndOfIterator` if the provided
         /// iterator does not have the specified number of entries.
-        ///
-        /// **Note:**
-        /// unlike most other methods in this library, this initialisation
-        /// method is implemented using recursion. (As one would expect, the
-        /// total required length of the stack is proportial to the log of `size`.)
         pub fn initFromSortedKVIterator(
             /// The type of the iterator from which to ontain the sorted values
             ///
@@ -172,14 +181,14 @@ pub fn RBTree(
             /// an error of type `InitSubtreeFromSortedError.ReachedEndOfIterator` will
             /// be returned. Note that cleanup is done before returning an error,
             /// so you don't have to worry about memory leaks.
-            iterator: SortedKVIterator,
+            sorted_iterator: SortedKVIterator,
         ) InitFromSortedError!Self {
             return Self{
-                .managed = try UnmanagedType.initFromSortedKVIterator(
+                .unmanaged = try UnmanagedType.initFromSortedKVIterator(
                     SortedKVIterator,
                     allocator,
                     size,
-                    iterator,
+                    sorted_iterator,
                 ),
                 .ctx = ctx,
                 .allocator = allocator,
@@ -196,7 +205,7 @@ pub fn RBTree(
             slice: []const KV,
         ) Allocator.Error!Self {
             return Self{
-                .managed = try UnmanagedType.initFromSortedKVSlice(
+                .unmanaged = try UnmanagedType.initFromSortedKVSlice(
                     allocator,
                     slice,
                 ),
@@ -224,7 +233,7 @@ pub fn RBTree(
             slice: []const K,
         ) Allocator.Error!Self {
             return Self{
-                .managed = try UnmanagedType.initFromSortedSlice(
+                .unmanaged = try UnmanagedType.initFromSortedSlice(
                     allocator,
                     slice,
                 ),
@@ -234,18 +243,18 @@ pub fn RBTree(
         }
 
         pub fn deinit(self: *Self) void {
-            self.managed.deinit(self.allocator);
+            self.unmanaged.deinit(self.allocator);
         }
 
         /// Gets the size of the red-black tree, that is, the number
         /// of entries in the tree.
         pub fn count(self: Self) usize {
-            return self.managed.count();
+            return self.unmanaged.count();
         }
 
         pub fn move(self: *Self) Self {
             return Self{
-                .managed = self.managed.move(),
+                .unmanaged = self.unmanaged.move(),
                 .ctx = self.ctx,
                 .allocator = self.allocator,
             };
@@ -253,7 +262,7 @@ pub fn RBTree(
 
         pub fn clone(self: Self) Allocator.Error!Self {
             return Self{
-                .managed = try self.managed.clone(self.allocator),
+                .unmanaged = try self.unmanaged.clone(self.allocator),
                 .ctx = self.ctx,
                 .allocator = self.allocator,
             };
@@ -265,7 +274,7 @@ pub fn RBTree(
             new_allocator: Allocator,
         ) Allocator.Error!Self {
             return Self{
-                .managed = try self.managed.clone(new_allocator),
+                .unmanaged = try self.unmanaged.clone(new_allocator),
                 .ctx = self.ctx,
                 .allocator = new_allocator,
             };
@@ -277,7 +286,7 @@ pub fn RBTree(
             new_ctx: Context,
         ) Allocator.Error!Self {
             return Self{
-                .managed = try self.managed.cloneWithNewContext(
+                .unmanaged = try self.unmanaged.cloneWithNewContext(
                     self.allocator,
                     new_ctx,
                 ),
@@ -293,7 +302,7 @@ pub fn RBTree(
             new_ctx: Context,
         ) Allocator.Error!Self {
             return Self{
-                .managed = try self.managed.cloneWithNewContext(
+                .unmanaged = try self.unmanaged.cloneWithNewContext(
                     new_allocator,
                     new_ctx,
                 ),
@@ -306,7 +315,7 @@ pub fn RBTree(
         ///
         /// This function assumes that the given node belongs to the tree
         pub fn removeNode(self: *Self, node: *Node) void {
-            self.managed.removeNodeWithContext(
+            self.unmanaged.removeNodeWithContext(
                 self.allocator,
                 node,
             );
@@ -317,19 +326,19 @@ pub fn RBTree(
         /// This function can also be seen the ocnstructor for a forward iterator
         /// over the tree.
         pub fn findMin(self: Self) ?*Node {
-            return self.managed.findMin();
+            return self.unmanaged.findMin();
         }
 
         /// Returns the largest entry in the list
         pub fn findMax(self: Self) ?*Node {
-            return self.managed.findMax();
+            return self.unmanaged.findMax();
         }
 
         pub fn removeNodeGetNext(
             self: *Self,
             node: *Node,
         ) ?*Node {
-            return self.managed.removeNodeGetNextWithContext(
+            return self.unmanaged.removeNodeGetNextWithContext(
                 self.allocator,
                 self.ctx,
                 node,
@@ -340,7 +349,7 @@ pub fn RBTree(
             self: *Self,
             node: *Node,
         ) ?*Node {
-            return self.managed.removeNodeGetPrevWithContext(
+            return self.unmanaged.removeNodeGetPrevWithContext(
                 self.allocator,
                 self.ctx,
                 node,
@@ -355,7 +364,7 @@ pub fn RBTree(
             value: V,
             clobber_option: ClobberOptions,
         ) Allocator.Error!InsertResult {
-            return self.managed.insertWithContext(
+            return self.unmanaged.insertWithContext(
                 self.allocator,
                 self.ctx,
                 key,
@@ -368,7 +377,7 @@ pub fn RBTree(
             self: Self,
             key: K,
         ) ?*Node {
-            return self.managed.findLowerBoundWithContext(
+            return self.unmanaged.findLowerBoundWithContext(
                 self.ctx,
                 key,
             );
@@ -378,7 +387,7 @@ pub fn RBTree(
             self: Self,
             key: K,
         ) ?*Node {
-            return self.managed.findUpperBoundWithContext(
+            return self.unmanaged.findUpperBoundWithContext(
                 self.ctx,
                 key,
             );
@@ -388,7 +397,7 @@ pub fn RBTree(
             self: Self,
             key: K,
         ) ?*Node {
-            return self.managed.findWithContext(
+            return self.unmanaged.findWithContext(
                 self.ctx,
                 key,
             );
@@ -398,7 +407,7 @@ pub fn RBTree(
             self: Self,
             key: K,
         ) ?Entry {
-            return self.managed.getEntryWithContext(
+            return self.unmanaged.getEntryWithContext(
                 self.ctx,
                 key,
             );
@@ -408,7 +417,7 @@ pub fn RBTree(
             self: Self,
             key: K,
         ) ?KV {
-            return self.managed.fetchWithContext(
+            return self.unmanaged.fetchWithContext(
                 self.ctx,
                 key,
             );
@@ -418,7 +427,7 @@ pub fn RBTree(
             self: Self,
             key: K,
         ) ?V {
-            return self.managed.getWithContext(
+            return self.unmanaged.getWithContext(
                 self.ctx,
                 key,
             );
@@ -428,7 +437,7 @@ pub fn RBTree(
             self: Self,
             key: K,
         ) ?*V {
-            return self.managed.getPtrWithContext(
+            return self.unmanaged.getPtrWithContext(
                 self.ctx,
                 key,
             );
@@ -438,7 +447,7 @@ pub fn RBTree(
             self: Self,
             key: K,
         ) ?K {
-            return self.managed.getKeyWithContext(
+            return self.unmanaged.getKeyWithContext(
                 self.ctx,
                 key,
             );
@@ -448,7 +457,7 @@ pub fn RBTree(
             self: Self,
             key: K,
         ) ?*K {
-            return self.managed.getKeyPtrWithContext(
+            return self.unmanaged.getKeyPtrWithContext(
                 self.ctx,
                 key,
             );
@@ -458,7 +467,7 @@ pub fn RBTree(
             self: Self,
             key: K,
         ) bool {
-            return self.managed.containsWithContext(
+            return self.unmanaged.containsWithContext(
                 self.ctx,
                 key,
             );
@@ -469,7 +478,7 @@ pub fn RBTree(
             key: K,
             value: V,
         ) GetOrPutResult {
-            return self.managed.getOrPutValueWithContext(
+            return self.unmanaged.getOrPutValueWithContext(
                 self.allocator,
                 self.ctx,
                 key,
@@ -481,7 +490,7 @@ pub fn RBTree(
             self: *Self,
             key: K,
         ) GetOrPutResult {
-            return self.managed.getOrPutWithContext(
+            return self.unmanaged.getOrPutWithContext(
                 self.allocator,
                 self.ctx,
                 key,
@@ -493,7 +502,7 @@ pub fn RBTree(
             key: K,
             value: V,
         ) Allocator.Error!?KV {
-            return self.managed.fetchPutWithContext(
+            return self.unmanaged.fetchPutWithContext(
                 self.allocator,
                 self.ctx,
                 key,
@@ -506,7 +515,7 @@ pub fn RBTree(
             key: K,
             value: V,
         ) Allocator.Error!void {
-            return self.managed.putWithContext(
+            return self.unmanaged.putWithContext(
                 self.allocator,
                 self.ctx,
                 key,
@@ -518,7 +527,7 @@ pub fn RBTree(
             self: *Self,
             key: K,
         ) Allocator.Error!void {
-            return self.managed.addWithContext(
+            return self.unmanaged.addWithContext(
                 self.allocator,
                 self.ctx,
                 key,
@@ -530,7 +539,7 @@ pub fn RBTree(
             key: K,
             value: V,
         ) Allocator.Error!void {
-            return self.managed.putNoClobberWithContext(
+            return self.unmanaged.putNoClobberWithContext(
                 self.allocator,
                 self.ctx,
                 key,
@@ -542,7 +551,7 @@ pub fn RBTree(
             self: *Self,
             key: K,
         ) ?KV {
-            return self.managed.fetchRemoveWithContext(
+            return self.unmanaged.fetchRemoveWithContext(
                 self.allocator,
                 self.ctx,
                 key,
@@ -553,7 +562,7 @@ pub fn RBTree(
             self: *Self,
             key: K,
         ) bool {
-            return self.managed.removeWithContext(
+            return self.unmanaged.removeWithContext(
                 self.allocator,
                 self.ctx,
                 key,

@@ -215,7 +215,7 @@ test "max_subtrees" {
         i32,
         void,
         void,
-        rbtreelib.defaultOrder(i32, 1),
+        rbtreelib.defaultOrder(i32),
         .{},
     );
 
@@ -256,10 +256,10 @@ test "max_subtrees" {
 
     for (entries) |e| {
         try tree.add(e);
-        _ = try getSubtreeMax(Tree.Node, tree.managed.root.?);
+        _ = try getSubtreeMax(Tree.Node, tree.unmanaged.root.?);
     }
     for (entries2) |e| {
         _ = tree.remove(e);
-        _ = try getSubtreeMax(Tree.Node, tree.managed.root.?);
+        _ = try getSubtreeMax(Tree.Node, tree.unmanaged.root.?);
     }
 }
