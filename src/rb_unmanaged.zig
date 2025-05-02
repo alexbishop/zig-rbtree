@@ -4,6 +4,8 @@ const std = @import("std");
 const Allocator = std.mem.Allocator;
 const Order = std.math.Order;
 
+const rbtreelib = @import("./rbtree.zig");
+
 const Impl = @import("./rb_implementation.zig");
 
 const isIterator = @import("./meta.zig").isIterator;
@@ -1626,24 +1628,17 @@ pub fn RBTreeUnmanaged(
 
             // this is the copy of the node
             var copy: *Node = try allocator.create(Node);
-            copy.setColor(node.getColor());
-            copy.setParent(null);
-            copy.left = null;
-            copy.right = null;
-            copy.key = node.key;
-            copy.value = node.value;
-            if (options.SubtreeSize != void) {
-                copy.subtree_size = node.subtree_size;
-            }
-            if (options.AdditionalNodeData) |_| {
-                copy.additional_data = node.additional_data;
-            }
+            copy.* = Node.init(.{
+                .color = node.getColor(),
+                .key = node.key,
+                .value = node.value,
+                .subtree_size = node.subtree_size,
+                .additional_data = node.additional_data,
+            });
 
             // start by setting the root
             result.root = copy;
-            if (options.SubtreeSize == void) {
-                result.size = self.size;
-            }
+            result.size = self.size;
 
             // in the following, we copy the tree in preorder
             // that is, in the order, node, left, right
@@ -1652,112 +1647,166 @@ pub fn RBTreeUnmanaged(
                 //  `node` and that the new copy is stored in
                 //  the variable named `copy`
 
-                if (node.left) |l| {
-                    // we have a left subtree we should copy
-                    //
-                    var left_copy: *Node = try allocator.create(Node);
-                    left_copy.setColor(l.getColor());
-                    left_copy.setParent(copy);
-                    left_copy.left = null;
-                    left_copy.right = null;
-                    left_copy.key = l.key;
-                    left_copy.value = l.value;
-                    if (options.SubtreeSize != void) {
-                        left_copy.subtree_size = l.subtree_size;
+                if (copy.left == null) {
+                    if (node.left) |l| {
+                        // we have a left subtree we should copy
+                        //
+                        const left_copy: *Node = try allocator.create(Node);
+                        left_copy.* = Node.init(.{
+                            .color = l.getColor(),
+                            .parent = copy,
+                            .key = l.key,
+                            .value = l.value,
+                            .subtree_size = l.subtree_size,
+                            .additional_data = l.additional_data,
+                        });
+
+                        // add the node to the tree
+                        copy.left = left_copy;
+
+                        // move onto copying this subtree
+                        node = l;
+                        copy = left_copy;
+
+                        continue :outer;
                     }
-                    if (options.AdditionalNodeData) |_| {
-                        left_copy.additional_data = l.additional_data;
+                }
+
+                if (copy.right == null) {
+                    if (node.right) |r| {
+                        // we have a left subtree we should copy
+                        //
+                        const right_copy: *Node = try allocator.create(Node);
+                        right_copy.* = Node.init(.{
+                            .color = r.getColor(),
+                            .parent = copy,
+                            .key = r.key,
+                            .value = r.value,
+                            .subtree_size = r.subtree_size,
+                            .additional_data = r.additional_data,
+                        });
+
+                        copy.right = right_copy;
+
+                        // move onto copying this subtree
+                        node = r;
+                        copy = right_copy;
+
+                        continue :outer;
                     }
+                }
 
-                    // add the node to the tree
-                    copy.left = left_copy;
-
-                    // move onto copying this subtree
-                    node = l;
-                    copy = left_copy;
-                } else if (node.right) |r| {
-                    // we have a left subtree we should copy
-                    //
-                    var right_copy: *Node = try allocator.create(Node);
-                    right_copy.setColor(r.getColor());
-                    right_copy.setParent(copy);
-                    right_copy.left = null;
-                    right_copy.right = null;
-                    right_copy.key = r.key;
-                    right_copy.value = r.value;
-                    if (options.SubtreeSize != void) {
-                        right_copy.subtree_size = r.subtree_size;
-                    }
-                    if (options.AdditionalNodeData) |_| {
-                        right_copy.additional_data = r.additional_data;
-                    }
-
-                    copy.right = right_copy;
-
-                    // move onto copying this subtree
-                    node = r;
-                    copy = right_copy;
-                } else if (node.getParent()) |parent| {
-                    // we have no more nodes to copy in this subtree, thus
-                    // we must move on to the next one in preorder
-
-                    // the following direction is defined since we have
-                    // a parent
-                    var direction: Direction = node.getDirection().?;
-
-                    // the following is defines since copy has a parent
-                    // if and only if node has a parent
+                if (node.getParent()) |parent| {
                     node = parent;
                     copy = copy.getParent().?;
+                    continue :outer;
+                }
 
-                    while (direction == .right or node.right == null) {
-                        // we need to iterate until we find the next thing in preoorder.
-                        //
-                        // if this while loop does not hold, then we are still
-                        // looking for our next in preorder, which will be a
-                        // child of one of our ancestors, thus we need to have
-                        // a parent for such a successor to exist.
-                        if (node.getDirection()) |new_direction| {
-                            // we have a parent, let's look there
-                            direction = new_direction;
-                            node = node.getParent().?;
-                            copy = copy.getParent().?;
-                        } else {
-                            // we have no parent, thus we must have no successor
-                            break :outer;
-                        }
+                // we have completly finished
+                break;
+            }
+
+            if (options.cache_nodes) |cached_options| {
+                if (cached_options.first) {
+                    if (result.getRoot()) |root| {
+                        result.cache.first = root.getLeftmostInSubtree();
                     }
-
-                    // at this point the successor is our right child
-
-                    const r = node.right.?;
-
-                    var right_copy: *Node = try allocator.create(Node);
-                    right_copy.setColor(r.getColor());
-                    right_copy.setParent(copy);
-                    right_copy.left = null;
-                    right_copy.right = null;
-                    right_copy.key = r.key;
-                    right_copy.value = r.value;
-                    if (options.SubtreeSize != void) {
-                        right_copy.subtree_size = r.subtree_size;
+                }
+                if (cached_options.last) {
+                    if (result.getRoot()) |root| {
+                        result.cache.last = root.getRightmostInSubtree();
                     }
-                    if (options.AdditionalNodeData) |_| {
-                        right_copy.additional_data = r.additional_data;
-                    }
-
-                    copy.right = right_copy;
-
-                    // move onto copying this subtree
-                    node = r;
-                    copy = right_copy;
-                } else {
-                    // we have completly finished
-                    break;
                 }
             }
 
             return result;
+        }
+
+        // checks if two subtrees are identical
+        fn testCompareTreesRec(comptime N: type, node1: ?*N, node2: ?*N) bool {
+            if (node1 == null or node2 == null) {
+                return !(node1 != null or node2 != null);
+            }
+
+            if (node1.?.key != node2.?.key) return false;
+            if (node1.?.value != node2.?.value) return false;
+            if (node1.?.subtree_size != node2.?.subtree_size) return false;
+
+            if (node1.?.getColor() != node2.?.getColor()) return false;
+
+            if (!testCompareTreesRec(N, node1.?.left, node2.?.left)) return false;
+            if (!testCompareTreesRec(N, node1.?.right, node2.?.right)) return false;
+
+            return true;
+        }
+
+        test clone {
+            const Tree = RBTreeUnmanaged(
+                usize,
+                void,
+                void,
+                rbtreelib.defaultOrder(usize),
+                .{
+                    .SubtreeSize = usize,
+                    .cache_nodes = .{
+                        .first = true,
+                        .last = true,
+                    },
+                },
+                .{},
+            );
+
+            var tree = try Tree.initFromSortedSlice(
+                std.testing.allocator,
+                &[_]usize{ 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 12, 13, 14, 15, 16, 17 },
+            );
+            defer tree.deinit(std.testing.allocator);
+
+            var cloned = try tree.clone(std.testing.allocator);
+            defer cloned.deinit(std.testing.allocator);
+
+            try std.testing.expect(testCompareTreesRec(
+                Tree.Node,
+                tree.getRoot(),
+                cloned.getRoot(),
+            ));
+            try std.testing.expect(cloned.findMin() == cloned.getRoot().?.getLeftmostInSubtree());
+            try std.testing.expect(cloned.findMax() == cloned.getRoot().?.getRightmostInSubtree());
+        }
+        test cloneWithNewContext {
+            const Tree = RBTreeUnmanaged(
+                usize,
+                void,
+                void,
+                rbtreelib.defaultOrder(usize),
+                .{
+                    .SubtreeSize = usize,
+                    .cache_nodes = .{
+                        .first = true,
+                        .last = true,
+                    },
+                },
+                .{},
+            );
+
+            var tree = try Tree.initFromSortedSlice(
+                std.testing.allocator,
+                &[_]usize{ 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 12, 13, 14, 15, 16, 17 },
+            );
+            defer tree.deinit(std.testing.allocator);
+
+            var cloned = try tree.cloneWithNewContext(std.testing.allocator, void{});
+            defer cloned.deinit(std.testing.allocator);
+
+            // check that they represent the same tree
+            var cloned_iter = cloned.findMin();
+            var tree_iter = tree.findMin();
+            while (tree_iter != null) {
+                try std.testing.expect(tree_iter.?.key == cloned_iter.?.key);
+                tree_iter = tree_iter.?.next();
+                cloned_iter = cloned_iter.?.next();
+            }
+            try std.testing.expect(cloned_iter == null);
         }
     };
 }
