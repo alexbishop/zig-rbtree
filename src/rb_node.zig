@@ -30,11 +30,26 @@ pub const Direction = enum {
     }
 };
 
-/// Options which can be passed when creating a red-black tree implementation.
-pub const Options = struct {
+/// Some additional options which can be applied to a node
+pub const NodeOptions = struct {
     /// Indicates if each node of the tree should maintain a count of the
     /// number of elements in its associated subtree
-    store_subtree_sizes: bool = false,
+    ///
+    /// This type should either be:
+    ///
+    ///   1. `void`:
+    ///      which indicates that the subtree sizes should not be maintained; or
+    ///
+    ///   2. An unsigned integer type with
+    ///
+    ///        - at least 8 bits; and
+    ///        - at most as many bits as `usize`.
+    ///
+    ///     This type is then used to store the sizes of subtrees.
+    ///
+    /// If you need to store the subtree sizes, then we suggest to set this
+    /// variable to `usize`.
+    SubtreeSize: type = void,
     /// Indicates if the colour of a red-black tree node should be stored
     /// as the least-significant bit of the parent pointer
     ///
@@ -99,11 +114,12 @@ pub fn Node(
     ///
     /// The above code will construct a node type with key type `usize`, value
     /// type `void`, and the default options.
-    comptime options: Options,
+    comptime options: NodeOptions,
 ) type {
     return struct {
         const Self = @This();
 
+        // check that the options provided to the type function make sense.
         comptime {
             if (options.store_color_in_parent_pointer) {
                 if (@alignOf(Self) <= 1) {
@@ -117,6 +133,27 @@ pub fn Node(
                         \\  a RBTree, RBTreeUnmanaged, RBTreeImplementation or Node
                     );
                 }
+            }
+
+            switch (@typeInfo(options.SubtreeSize)) {
+                .void => {},
+                .int => |i| {
+                    if (i.signedness == .signed or i.bits < 8 or i.bits > @typeInfo(usize).int.bits) {
+                        @compileError(
+                            \\If options.SubtreeSize is an integer, then it must
+                            \\ be an unsigned integer with at least 8 bits and at most as
+                            \\ many bits as usize.
+                            \\If you're unsure, then use `usize` instead
+                        );
+                    }
+                },
+                else => {
+                    @compileError(
+                        \\options.SubtreeSize must either be `void` or an
+                        \\ unsigned integer with at least 8 bits.
+                        \\If you're unsure, then use `usize` or `void` instead
+                    );
+                },
             }
         }
 
@@ -166,9 +203,9 @@ pub fn Node(
         /// function.
         impl_parent_and_color: if (options.store_color_in_parent_pointer) usize else void,
 
-        /// If the `store_subtree_sizes` option is set, then this stores the size of the subtree
+        /// If the `SubtreeSize` option is set, then this stores the size of the subtree
         /// rooted at this node.
-        subtree_size: if (options.store_subtree_sizes) usize else void,
+        subtree_size: options.SubtreeSize,
 
         /// The root of the left subtree of this node.
         left: ?*Self,
@@ -187,7 +224,7 @@ pub fn Node(
         pub const InitArgs = struct {
             parent: ?*Self = null,
             color: NodeColor = .black,
-            subtree_size: if (options.store_subtree_sizes) usize else void = if (options.store_subtree_sizes) 1 else void{},
+            subtree_size: options.SubtreeSize = if (options.SubtreeSize == void) void{} else 1,
             left: ?*Self = null,
             right: ?*Self = null,
             key: K = undefined,
@@ -401,6 +438,61 @@ pub fn Node(
                         current = current.getParent().?;
                     }
                 }
+                return null;
+            }
+        }
+
+        /// Obtains the node which would occur after this one in a prefix order
+        /// (otherwise known as polish order).
+        ///
+        /// For those who are unfamiliar with postfix order, it corresponds to
+        /// the order in which one would print nodes of a binary tree in
+        /// the following pseudocode
+        ///
+        /// ```zig
+        /// fn printInPrefixOrder(node: *const Node) void {
+        ///     // print this node
+        ///     printNode(node);
+        ///
+        ///     // print the left subtree if we have one
+        ///     if (node.left) |left| printInPostfixOrder(left);
+        ///
+        ///     // print the right subtree if we have one
+        ///     if (node.right) |right| printInPostfixOrder(right);
+        /// }
+        /// ```
+        ///
+        /// Note that even though the above is pseudocode, you could actually
+        /// get it to run in Zig if you define the function `printNode`.
+        pub fn prefixNext(self: *const Self) ?*Self {
+            if (self.left) |left| return left;
+            if (self.right) |right| return right;
+
+            var current: ?*const Node = self;
+            while (current.getDirection()) |direction| {
+                const parent = current.getParent().?;
+                if (direction == .left and parent.right != null) {
+                    return parent.right;
+                }
+                current = parent;
+            }
+            return null;
+        }
+
+        /// Obtains the node which would occur after this one in a prefix order
+        /// (otherwise known as polish order).
+        ///
+        /// This function is provided as a companion to the function `prefixNext`
+        ///
+        /// If the programmer is unfamiliar with postfix notation, then they should
+        /// look at the documentation of `prefixNext`
+        pub fn prefixPrev(self: *const Self) ?*Self {
+            if (self.getParent()) |parent| {
+                const direction = self.getDirection().?;
+                if (direction == .left) return parent;
+                if (parent.left != null) return parent.left;
+                return parent;
+            } else {
                 return null;
             }
         }

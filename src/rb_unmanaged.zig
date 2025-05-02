@@ -18,7 +18,7 @@ const RBTreeUnmanagedTag = opaque {};
 /// Returns `true` if the given type was obtained from the function `RBTreeUnmanaged`.
 ///
 /// Notice that if it is a rb-tree, then the arguments which were passed to
-/// `RBTreeUnmanaged` can be ontained as `T.args`.
+/// `RBTreeUnmanaged` can be obtained as `T.args`.
 pub fn isRBTreeUnmanaged(comptime T: type) bool {
     switch (@typeInfo(T)) {
         .@"struct" => |_| {
@@ -62,7 +62,7 @@ pub fn RBTreeUnmanaged(
         K,
         V,
         Context,
-        options,
+        options.getNodeOptions(),
     ),
 ) type {
     return struct {
@@ -103,7 +103,9 @@ pub fn RBTreeUnmanaged(
         /// void.
         ///
         /// To get the size of the tree, call the function `count` instead
-        size: if (options.store_subtree_sizes) void else usize,
+        size: if (options.SubtreeSize != void) void else usize,
+
+        cache: implementation.NodeCache,
 
         /// Gets the root of the tree.
         ///
@@ -115,15 +117,23 @@ pub fn RBTreeUnmanaged(
 
         /// Initialises an empty red-black tree.
         pub fn init() Self {
-            if (options.store_subtree_sizes) {
+            if (options.SubtreeSize != void) {
                 return .{
                     .root = null,
                     .size = void{},
+                    .cache = if (implementation.NodeCache == void)
+                        void{}
+                    else
+                        implementation.NodeCache.blank,
                 };
             } else {
                 return .{
                     .root = null,
                     .size = 0,
+                    .cache = if (implementation.NodeCache == void)
+                        void{}
+                    else
+                        implementation.NodeCache.blank,
                 };
             }
         }
@@ -337,6 +347,8 @@ pub fn RBTreeUnmanaged(
             //      f.right = null
             //
             //      // to remove ambiguity, we also say that
+            //      e.left = k
+            //      e.right = null
             //      f.left = null
             //
             //  with
@@ -423,7 +435,7 @@ pub fn RBTreeUnmanaged(
             // now a valid binary tree
             //
             // For example, if `size = 12`, then the data structure after
-            // the following function call will be 
+            // the following function call will be
             //
             //                      ____ root _____
             //                     /               \
@@ -453,10 +465,23 @@ pub fn RBTreeUnmanaged(
                 }
             }
 
+            // compute the cache
+            var cache: implementation.NodeCache = undefined;
+            _ = &cache;
+
+            if (options.cache_nodes) |cache_nodes| {
+                if (cache_nodes.first) {
+                    cache.first = head_of_leaf_list;
+                }
+                if (cache_nodes.last) {
+                    cache.last = root.getRightmostInSubtree();
+                }
+            }
+
             // We are now ready to finish up the tree and return
-            if (options.store_subtree_sizes) {
+            if (options.SubtreeSize != void) {
                 {
-                    // fill in the subtree counts by moving over the 
+                    // fill in the subtree counts by moving over the
                     // tree in an postfix order
                     var current: ?*Node = head_of_leaf_list;
                     while (current) |c| : (current = c.postfixNext()) {
@@ -468,11 +493,13 @@ pub fn RBTreeUnmanaged(
                 return .{
                     .root = root,
                     .size = void{},
+                    .cache = cache,
                 };
             } else {
                 return .{
                     .root = root,
                     .size = size,
+                    .cache = cache,
                 };
             }
         }
@@ -676,14 +703,15 @@ pub fn RBTreeUnmanaged(
                         new_node.key = key;
                         new_node.value = value;
 
-                        implementation.insertNode(
+                        implementation.insertNodeWithCache(
+                            &self.cache,
                             root_ref,
                             ctx,
                             new_node,
                             location,
                         );
 
-                        if (!options.store_subtree_sizes) {
+                        if (options.SubtreeSize == void) {
                             self.size += 1;
                         }
 
@@ -700,13 +728,14 @@ pub fn RBTreeUnmanaged(
                 node.key = key;
                 node.value = value;
 
-                implementation.makeRoot(
+                implementation.makeRootWithCache(
+                    &self.cache,
                     &self.root,
                     ctx,
                     node,
                 );
 
-                if (!options.store_subtree_sizes) {
+                if (options.SubtreeSize == void) {
                     self.size = 1;
                 }
                 //
@@ -753,12 +782,13 @@ pub fn RBTreeUnmanaged(
             ctx: Context,
             node: *Node,
         ) void {
-            implementation.removeNode(
+            implementation.removeNodeWithCache(
+                &self.cache,
                 &self.root,
                 ctx,
                 node,
             );
-            if (!options.store_subtree_sizes) {
+            if (options.SubtreeSize == void) {
                 self.size -= 1;
             }
             allocator.destroy(node);
@@ -787,9 +817,9 @@ pub fn RBTreeUnmanaged(
         ///
         /// Note this function should be preferred over reading the size directly.
         pub fn count(self: Self) usize {
-            if (options.store_subtree_sizes) {
+            if (options.SubtreeSize != void) {
                 if (self.root) |r| {
-                    return r.subtree_size;
+                    return @intCast(r.subtree_size);
                 } else {
                     return 0;
                 }
@@ -807,19 +837,27 @@ pub fn RBTreeUnmanaged(
         /// Call this function if you want an forward iterator over all the entries
         /// in the red-black tree.
         pub fn findMin(self: Self) ?*Node {
-            if (self.root) |r| {
-                return r.getLeftmostInSubtree();
+            if (options.cache_nodes != null and options.cache_nodes.?.first) {
+                return self.cache.first;
             } else {
-                return null;
+                if (self.root) |r| {
+                    return r.getLeftmostInSubtree();
+                } else {
+                    return null;
+                }
             }
         }
 
         /// Returns the node corresponding to the largest key stored in the tree.
         pub fn findMax(self: Self) ?*Node {
-            if (self.root) |r| {
-                return r.getRightmostInSubtree();
+            if (options.cache_nodes != null and options.cache_nodes.?.last) {
+                return self.cache.last;
             } else {
-                return null;
+                if (self.root) |r| {
+                    return r.getRightmostInSubtree();
+                } else {
+                    return null;
+                }
             }
         }
 
@@ -1594,7 +1632,7 @@ pub fn RBTreeUnmanaged(
             copy.right = null;
             copy.key = node.key;
             copy.value = node.value;
-            if (options.store_subtree_sizes) {
+            if (options.SubtreeSize != void) {
                 copy.subtree_size = node.subtree_size;
             }
             if (options.AdditionalNodeData) |_| {
@@ -1603,7 +1641,7 @@ pub fn RBTreeUnmanaged(
 
             // start by setting the root
             result.root = copy;
-            if (!options.store_subtree_sizes) {
+            if (options.SubtreeSize == void) {
                 result.size = self.size;
             }
 
@@ -1624,7 +1662,7 @@ pub fn RBTreeUnmanaged(
                     left_copy.right = null;
                     left_copy.key = l.key;
                     left_copy.value = l.value;
-                    if (options.store_subtree_sizes) {
+                    if (options.SubtreeSize != void) {
                         left_copy.subtree_size = l.subtree_size;
                     }
                     if (options.AdditionalNodeData) |_| {
@@ -1647,7 +1685,7 @@ pub fn RBTreeUnmanaged(
                     right_copy.right = null;
                     right_copy.key = r.key;
                     right_copy.value = r.value;
-                    if (options.store_subtree_sizes) {
+                    if (options.SubtreeSize != void) {
                         right_copy.subtree_size = r.subtree_size;
                     }
                     if (options.AdditionalNodeData) |_| {
@@ -1701,7 +1739,7 @@ pub fn RBTreeUnmanaged(
                     right_copy.right = null;
                     right_copy.key = r.key;
                     right_copy.value = r.value;
-                    if (options.store_subtree_sizes) {
+                    if (options.SubtreeSize != void) {
                         right_copy.subtree_size = r.subtree_size;
                     }
                     if (options.AdditionalNodeData) |_| {

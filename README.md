@@ -1,44 +1,50 @@
 # Zig Red-Black Trees
 
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+
 An extensible implementation of augmented red-black trees in the Zig programming language.
 
 **Note:** This package is written for zig version 0.14.0.
 
-For full documentation see https://alexbishop.github.io/zig-rbtree
-
-**Quickstart:** For instructions on how to use this package in your code, see the [Releases page](https://github.com/alexbishop/zig-rbtree/releases).
-
 This library is released under the MIT license (you should have a copy of the LICENSE file with this source code).
 
-TODO before version 1.0.0:
+## Quickstart
 
- - [ ] add more tests including some new doctests as example usage
- - [ ] allow subtree size to be of any integer type (not just `usize`)
- - [ ] add an option to cache the first and last element of a red-black tree so that they can be retrieved in O(1) time
+For instructions on how to use this package in your code, see the [Releases page](https://github.com/alexbishop/zig-rbtree/releases).
 
-## New in this version
+## Documentation
 
-All functions of the form `*Context` in types created by `RBTreeUnmanaged` have been renamed as `*WithContext`.
-This is to reduce ambiguity when calling functions like `getContext`.
+For full documentation with some examples, see https://alexbishop.github.io/zig-rbtree
 
-Added some new functions `moveNodeByCopy` and `swapNodeStorage` to `RBTreeImplementation`.
-These function enable some more advanced usage.
+## Features
 
-Updated the implementation of `initFromSortedKVIterator` in `RBTreeUnmanaged` so that it no longer uses recursion.
-Moreover, this function now issues a compile error if the input iterator does not match the desired iterator interface.
-
-Added function `isIterator` to `rbtree.meta` in order to check if a given value is an iterator.
-
-Updates the default sort in `rbtree.meta.order` so that it now supports pointer dereferences with a comptime limit on
-the number of nested pointer dereferences.
-There is also a new function `rbtree.defaultOrderGeneric` which also takes in a pointer depth.
+  1. Multiple layers of abstraction for different use cases
+  2. Non-recursive implementation of search, insert and delete *(so we don't blow up your stack)*
+  3. Create a red-black tree from a sorted list in O(n) time without the need for rotates, recolours or swaps.
+     This implementation does not use recursion.
+  4. Takes order functions which take a context parameter so you can change order behaviour at runtime
+     *(this feature is useful if your order depends on some user input)*
+  5. Possibility to make an augmented red-black tree with arbitrary additional data
+     in nodes
+  6. Optional: maintain subtree sizes
+     *(turned off by default but easy to enable in the `Options` passed
+     to `RBTreeImplementation`, `RBTreeUnmanaged` or `RBTree`)*
+      - these subtree counts don't need to be of type `usize`, in fact, they can be of any
+        unsigned integer type with at least 8 bits and at most as many bits as `usize`
+      - for such trees, we also have additional function available under the `index_functions` namespace
+  7. Optional: save space by keeping the colour of the nodes in the lowest order bit of the parent pointer
+     *(turned on by default but easy to disable in the `Options` passed
+     to `RBTreeImplementation`, `RBTreeUnmanaged` or `RBTree`)*
+  8. Optional: cache the first and last node in the tree
+     *(turned off by default but easy to enable in the `Options` passed
+     to `RBTreeImplementation`, `RBTreeUnmanaged` or `RBTree`)*
+        - this then allows `findMin` and `findMax` to run in time O(1)
 
 ## Alternatives
 
 If you don't like this implementation, here are some alternatives which either solve the same problem or a similar problem:
 
-  - [Haeryu/rbtree](https://github.com/Haeryu/rbtree):
-        stores a red-black tree in a array
+  - [Haeryu/rbtree](https://github.com/Haeryu/rbtree): stores a red-black tree in a array
   - [Zig compiler implementation](https://github.com/ziglang/std-lib-orphanage/blob/master/std/rb.zig):
         the now orphaned implementation which appeared in the Zig compiler
   - [pmkap/zig-btreemap](https://github.com/pmkap/zig-btreemap):
@@ -54,10 +60,13 @@ The above list is non-exhaustive. There are likely many other alternatives out t
 
 ## Tests
 
-The base implementation has some tests which are given in `tests/tests.zig`.
+To run all the tests with a summary, execute the following command
 
-We note here that these tests are a translation of the tests in [stanislavkozlovski/Red-Black-Tree](https://github.com/stanislavkozlovski/Red-Black-Tree/tree/cb3cefb420bfa6c1d1fc703cefad54e209c7438c).
+```bash
+zig build test --summary all
+```
 
+Note that the tests under `test/tests.zig` were translation of the tests in [stanislavkozlovski/Red-Black-Tree](https://github.com/stanislavkozlovski/Red-Black-Tree/tree/cb3cefb420bfa6c1d1fc703cefad54e209c7438c).
 This translation was performed using the awk script given in `scripts/tests.gawk` in this repository, followed by a small amount of manual editing. (We note here that the tests in [stanislavkozlovski/Red-Black-Tree](https://github.com/stanislavkozlovski/Red-Black-Tree/tree/cb3cefb420bfa6c1d1fc703cefad54e209c7438c) contained a few typos which were found after the translation.)
 As the name suggests this script was written to be run with [gawk](https://www.gnu.org/software/gawk/manual/gawk.html).
 (At this point, there are still 6 small tests left to be translated.)
@@ -142,25 +151,25 @@ You can construct an object of this type using the following function.
 
 ```zig
 pub fn RBTreeImplementation(
-    // the type of the key
+    /// The type used for the keys of the red-black tree
     comptime K: type,
-    // the type of the value being stored
+    /// The type used for the values of the red-black tree
     comptime V: type,
-    // the type of the conext which can be passed to the comparison function
-    // and to any augmented callbacks
+    /// The type used for the context which is passed to the order function
     comptime Context: type,
-    // the function used to compare keys in the tree
+    /// The order by which to sort the keys
+    ///
+    /// Note that if your desired order function does not support a context,
+    /// then you can fix this with the `addVoidContextToOrder` function.
     comptime order: fn (ctx: Context, lhs: K, rhs: K) Order,
-    // some additional options,
-    // see the "Augmentation and options" section of this readme
+    /// Additional options used to construct the tree
     comptime options: Options,
-    // functions used to augment the functionality of the tree,
-    // see the "Augmentation and options" section of this readme
+    /// The callback functions which implement any augmentation
     comptime augmented_callbacks: Callbacks(
         K,
         V,
         Context,
-        options,
+        options.getNodeOptions(),
     ),
 ) type
 ```
@@ -266,7 +275,7 @@ pub fn RBTreeUnmanaged(
         K,
         V,
         Context,
-        options,
+        options.getNodeOptions(),
     ),
 ) type {
 ```
@@ -295,7 +304,7 @@ pub fn RBTree(
         K,
         V,
         Context,
-        options,
+        options.getNodeOptions(),
     ),
 ) type {
 ```
@@ -344,7 +353,7 @@ Notice that each of our layers of abstraction allow for options which augment th
 pub const Options = struct {
     /// Indicates if each node of the tree should maintain a count of the
     /// number of elements in its associated subtree
-    store_subtree_sizes: bool = false,
+    SubtreeSize: bool = false,
     /// Indicates if the color of a red-black tree node should be stored
     /// as the least-significant bit of the parent pointer
     store_color_in_parent_pointer: bool = true,
@@ -363,7 +372,7 @@ pub fn Callbacks(
     comptime K: type,
     comptime V: type,
     comptime Context: type,
-    comptime options: Options,
+    comptime options: NodeOptions,
 ) type {
     return struct {
         const Node = RBNode.Node(

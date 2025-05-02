@@ -286,7 +286,7 @@ match($0, /^[[:space:]]*([A-Za-z0-9_]*)\s*=\s*([A-Za-z0-9_.]*)[[:space:]]*(#.*)?
 #       tree.root = root
 #
 match($0, /^[[:space:]]*(rb_|)tree\.root\s*=\s*root[[:space:]]*(#.*)?$/, m) && (status == 1) {
-  printf("    var rb_tree: Tree = .{ .root = root, .size = %i };\n", length(node_variables))
+  printf("    var rb_tree: Tree = .{ .root = root, .size = %i, .cache = void{} };\n", length(node_variables))
 
   initialised_rbtree = 1
   next

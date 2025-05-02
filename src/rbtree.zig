@@ -3,7 +3,7 @@
 //! This library contains an implementation of augmented red-black tree
 //! with 3 layers of abstraction.
 //!
-//! This is the documentation for version 0.3.0 of the library.
+//! This is the documentation for version 1.0.0 of the library.
 //! See the [repo on GitHub](https://github.com/alexbishop/zig-rbtree) for
 //! the code.
 //!
@@ -12,13 +12,13 @@
 //! ### Quickstart
 //!
 //! For install instructions, see the
-//! [GitHub release](https://github.com/alexbishop/zig-rbtree/releases/tag/v0.3.0).
+//! [GitHub release](https://github.com/alexbishop/zig-rbtree/releases/tag/v1.0.0).
 //!
 //! For beginners and general use, we recommend using the function `DefaultRBTree` or
 //! `DefaultRBTreeUnmanaged` to construct your red-black trees.
 //!
 //! An example of the usage of `DefaultRBTree` is given in the
-//! [GitHub release](https://github.com/alexbishop/zig-rbtree/releases/tag/v0.3.0).
+//! [GitHub release](https://github.com/alexbishop/zig-rbtree/releases/tag/v1.0.0).
 //!
 //! For an example of an augmented red-black tree, see `example/augmented_example.zig`
 //! in the source for this library which you can find
@@ -30,16 +30,23 @@
 //!   2. Non-recursive implementation of search, insert and delete *(so we don't blow up your stack)*
 //!   3. Create a red-black tree from a sorted list in `O(n)` time without the need for rotates, recolours or swaps.
 //!      This implementation does not use recursion.
-//!   4. Takes order functions which take a context argumanet so you can change order behaviour at runtime
+//!   4. Takes order functions which take a context parameter so you can change order behaviour at runtime
 //!      *(this feature is useful if your order depends on some user input)*
 //!   5. Possibility to make an augmented red-black tree with arbitrary additional data
 //!      in nodes
 //!   6. Optional: maintain subtree sizes
 //!      *(turned off by default but easy to enable in the `Options` passed
 //!      to `RBTreeImplementation`, `RBTreeUnmanaged` or `RBTree`)*
+//!       - these subtree counts don't need to be of type `usize`, in fact, they can be of any
+//!         unsigned integer type with at least 8 bits and at most as many bits as `usize`
+//!       - for such trees, we also have additional function available under the `index_functions` namespace
 //!   7. Optional: save space by keeping the colour of the nodes in the lowest order bit of the parent pointer
 //!      *(turned on by default but easy to disable in the `Options` passed
 //!      to `RBTreeImplementation`, `RBTreeUnmanaged` or `RBTree`)*
+//!   8. Optional: cache the first and last node in the tree
+//!      *(turned off by default but easy to enable in the `Options` passed
+//!      to `RBTreeImplementation`, `RBTreeUnmanaged` or `RBTree`)*
+//!       - this then allows `findMin` and `findMax` to run in time O(1)
 //!
 //! ### Structure
 //!
@@ -98,8 +105,10 @@ const implementation = @import("./rb_implementation.zig");
 const node = @import("./rb_node.zig");
 
 pub const meta = @import("./meta.zig");
+pub const index_functions = @import("./index_functions.zig");
 
 pub const Options = unmanaged.Options;
+pub const NodeOptions = node.NodeOptions;
 pub const Node = node.Node;
 pub const RBTree = managed.RBTree;
 pub const RBTreeUnmanaged = unmanaged.RBTreeUnmanaged;
@@ -149,6 +158,7 @@ pub fn DefaultRBTreeImplementation(
 pub const isNode = node.isNode;
 pub const isRBTree = managed.isRBTree;
 pub const isRBTreeUnmanaged = unmanaged.isRBTreeUnmanaged;
+pub const isRBTreeImplementation = implementation.isRBTreeImplementation;
 
 /// The return type of `getTreeType`.
 pub const TreeTag = enum {
@@ -156,13 +166,15 @@ pub const TreeTag = enum {
     managed,
     /// The type provided to `getTreeType` was constructed using `RBTreeUnmanaged`.
     unmanaged,
+    /// The type provided to `getTreeType` was constructed using `RBTreeImplementation`
+    implemenation,
 };
-/// Checks if a given type was created with `RBTree` or `RBTreeUnmanaged`.
+/// Checks if a given type was created with `RBTree`, `RBTreeUnmanaged`, or `RBTreeImplementation`.
 ///
 /// This function will return `null` if and only if the given type was not
 /// constructed from one of the afforementioned type functions.
 ///
-/// See also `isRBTree`, `isRBTreeUnmanaged` and `isNode`.
+/// See also `isRBTree`, `isRBTreeUnmanaged`, `isRBTreeImplementation` and `isNode`.
 ///
 /// This function allows for generic programming.
 /// For example, you could implement the following function.
@@ -197,6 +209,7 @@ pub const TreeTag = enum {
 pub fn getTreeType(comptime Tree: type) ?TreeTag {
     if (comptime isRBTree(Tree)) return .managed;
     if (comptime isRBTreeUnmanaged(Tree)) return .unmanaged;
+    if (comptime isRBTreeImplementation(Tree)) return .implementation;
     return null;
 }
 

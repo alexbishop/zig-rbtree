@@ -7,7 +7,84 @@ const Order = std.math.Order;
 
 const RBNode = @import("./rb_node.zig");
 
-pub const Options = RBNode.Options;
+/// Options used to construct a red-black tree
+pub const Options = struct {
+    /// Indicates if each node of the tree should maintain a count of the
+    /// number of elements in its associated subtree
+    ///
+    /// This type should either be:
+    ///
+    ///   1. `void`:
+    ///      which indicates that the subtree sizes should not maintained; or
+    ///
+    ///   2. An unsigned integer type with
+    ///
+    ///        - at least 8 bits; and
+    ///        - at most as many bits as `usize`.
+    ///
+    ///     This type is then used to store the sizes of subtrees.
+    ///
+    /// If you need to store the subtree sizes, then we suggest to set this
+    /// variable to `usize`.
+    SubtreeSize: type = void,
+    /// Indicates if the colour of a red-black tree node should be stored
+    /// as the least-significant bit of the parent pointer
+    ///
+    /// We allow for this feature to be disabled as it may cause issues on
+    /// some compiler targets.
+    store_color_in_parent_pointer: bool = true,
+    /// Every node of the tree will have an additional field of this type.
+    ///
+    /// In particular, each node has a field of the following name and type:
+    ///
+    /// ```zig
+    /// additional_data: options.AdditionalNodeData
+    /// ```
+    ///
+    /// This feature is provided as it is usually required in order to implement
+    /// augmented red-black trees. In partiuclar, such a field would be used to
+    /// store the additional data of the augmented tree.
+    AdditionalNodeData: type = void,
+
+    /// Indicates if the implemenation should cache the first and/or last node
+    /// in the tree.
+    ///
+    /// Note that if this is set, then `findMax` and `findMin` in `RBTreeUnmanaged`
+    /// and `RBTree` will run in time `O(1)`.
+    ///
+    /// Note that if thie is set, the you must use the `WithCache` versions of the
+    /// methods provided in `RBTreeImplementation`.
+    cache_nodes: ?struct {
+        /// cache the first node of the tree
+        first: bool = false,
+        /// cache the last node of the tree
+        last: bool = false,
+    } = null,
+
+    // This type is meant to be a superset of the Options type provided in `RBNode.Node`.
+    // The following compile-time checks ensure that this remains true if new
+    // values are added to the Options used by `RBNode.Node`.
+    comptime {
+        for (@typeInfo(RBNode.NodeOptions).@"struct".fields) |field| {
+            if (std.meta.fieldIndex(Options, field.name)) |field_index| {
+                if (@typeInfo(Options).@"struct".fields[field_index].type != field.type) {
+                    @compileError("Option field '" ++ field.name ++ "' has the wrong type");
+                }
+            } else {
+                @compileError("Option does not have field '" ++ field.name ++ "'");
+            }
+        }
+    }
+
+    /// Produce an options type that can be used by the `Node` type function
+    pub fn getNodeOptions(options: Options) RBNode.NodeOptions {
+        var node_options: RBNode.NodeOptions = undefined;
+        inline for (std.meta.fieldNames(RBNode.NodeOptions)) |field_name| {
+            @field(node_options, field_name) = @field(options, field_name);
+        }
+        return node_options;
+    }
+};
 
 /// Callbacks which can be used to implement an augmented red-black tree.
 ///
@@ -21,8 +98,8 @@ pub fn Callbacks(
     comptime V: type,
     /// The type of the context which is passed to the sort function
     comptime Context: type,
-    /// The options that were used to construct the red-black tree
-    comptime options: Options,
+    /// The options that were used to construct the red-black tree node
+    comptime options: RBNode.NodeOptions,
 ) type {
     return struct {
         /// The type of a node in the red-black tree associated to the callbacks
@@ -77,6 +154,30 @@ pub fn Callbacks(
     };
 }
 
+/// A unique type which is used to tag types which were created using
+/// the `RBTreeImplementation` function.
+const RBTreeImplementationTag = opaque {};
+
+/// Returns `true` if the given type was obtained from the function `RBTreeImplementation`.
+///
+/// Notice that if it is a rb-tree, then the arguments which were passed to
+/// `RBTreeImplementation` can be obtained as `T.args`.
+pub fn isRBTreeImplementation(comptime T: type) bool {
+    switch (@typeInfo(T)) {
+        .@"struct" => |_| {
+            if (@hasDecl(T, "tag")) {
+                switch (@typeInfo(@TypeOf(T.tag))) {
+                    .type => return (T.tag == RBTreeImplementationTag),
+                    else => return false,
+                }
+            } else {
+                return false;
+            }
+        },
+        else => return false,
+    }
+}
+
 /// Basic functions for the implementation of a red-black tree.
 pub fn RBTreeImplementation(
     /// The type used for the keys of the red-black tree
@@ -97,10 +198,24 @@ pub fn RBTreeImplementation(
         K,
         V,
         Context,
-        options,
+        options.getNodeOptions(),
     ),
 ) type {
     return struct {
+
+        /// We tag the struct so that we can later identify it as the implementation
+        /// of a red-black tree
+        const tag = RBTreeImplementationTag;
+        /// The arguments which were passed when creating this struct
+        pub const args = .{
+            .K = K,
+            .V = V,
+            .Context = Context,
+            .order = order,
+            .options = options,
+            .augmented_callbacks = augmented_callbacks,
+        };
+
         /// Used to represent the colour of a node in the tree
         pub const NodeColor = RBNode.NodeColor;
         /// Used to represent left or right, in reference to the left and right subtrees
@@ -111,8 +226,27 @@ pub fn RBTreeImplementation(
         pub const Node = RBNode.Node(
             K,
             V,
-            options,
+            options.getNodeOptions(),
         );
+
+        /// A type used to cache the first and/or last node in the tree
+        ///
+        /// This type depends on the type `options.cache_nodes`
+        pub const NodeCache =
+            if (options.cache_nodes) |cache_nodes|
+                if (cache_nodes.first or cache_nodes.last)
+                    struct {
+                        pub const blank: @This() = .{
+                            .first = if (cache_nodes.first) null else void{},
+                            .last = if (cache_nodes.last) null else void{},
+                        };
+                        first: if (cache_nodes.first) ?*Node else void,
+                        last: if (cache_nodes.last) ?*Node else void,
+                    }
+                else
+                    void
+            else
+                void;
 
         /// A container for a reference to the key and value of a node
         pub const Entry = struct {
@@ -282,6 +416,26 @@ pub fn RBTreeImplementation(
             ctx: Context,
             new_node: *Node,
         ) void {
+            if (NodeCache != void) {
+                @compileError("You cannot call this function is you are caching nodes");
+            }
+            makeRootWithCache(undefined, root_ref, ctx, new_node);
+        }
+
+        pub fn makeRootWithCache(
+            cache: *NodeCache,
+            /// The place to store the new root.
+            ///
+            /// This should be `null` before calling this function
+            root_ref: *?*Node,
+            /// The context that would be provided to the sort function
+            ///
+            /// This value is required as it is passed to the `afterLink` callback function
+            /// if it is provided. Thus, if you have not provided any augmentation functions
+            /// for this tree, then this can be set to `undefined`.
+            ctx: Context,
+            new_node: *Node,
+        ) void {
             // set all the relevant fields of the node and its parent
             new_node.setParent(null);
             new_node.setColor(.black);
@@ -291,13 +445,18 @@ pub fn RBTreeImplementation(
             root_ref.* = new_node;
 
             // update any counts if we are counting in subtrees
-            if (options.store_subtree_sizes) {
+            if (options.SubtreeSize != void) {
                 new_node.subtree_size = 1;
             }
 
             // we need to check if we need to update the node
             if (augmented_callbacks.afterLink) |afterLink| {
                 afterLink(ctx, new_node);
+            }
+
+            if (options.cache_nodes) |cache_nodes| {
+                if (cache_nodes.first) cache.first = new_node;
+                if (cache_nodes.last) cache.last = new_node;
             }
         }
 
@@ -349,6 +508,44 @@ pub fn RBTreeImplementation(
             /// Such a location can be obtained from the function `findNodeOrLocation`
             location: Location,
         ) void {
+            if (NodeCache != void) {
+                @compileError("You cannot call this function is you are caching nodes");
+            }
+            insertNodeWithCache(undefined, root_ref, ctx, new_node, location);
+        }
+        pub fn insertNodeWithCache(
+            cache: *NodeCache,
+            /// A reference to the root of the tree
+            ///
+            /// Note that the root cannot be `null`. If the root is `null`, then you should
+            /// instead call the function `makeRoot`.
+            root_ref: **Node,
+            /// The context to pass to the order function
+            ///
+            /// Note that this value if only required as it is passed to the callback functions.
+            /// Thus, if you are not using any augmentation, then you can set this value to
+            /// be `undefined`.
+            ctx: Context,
+            /// The new node to insert into the red-black tree
+            new_node: *Node,
+            /// The location to insert the new node into the tree which maintains the
+            /// sorted order of the tree.
+            ///
+            /// Such a location can be obtained from the function `findNodeOrLocation`
+            location: Location,
+        ) void {
+            if (options.cache_nodes) |cache_nodes| {
+                if (cache_nodes.first) {
+                    if (location.direction == .left and cache_nodes.first == location.parent) {
+                        cache.first = new_node;
+                    }
+                }
+                if (cache_nodes.last) {
+                    if (location.direction == .right and cache_nodes.last == location.parent) {
+                        cache.last = new_node;
+                    }
+                }
+            }
             // set all the relevant fields of the node and its parent
             // the new node will start out as red
             location.parent.setChild(location.direction, new_node);
@@ -358,7 +555,7 @@ pub fn RBTreeImplementation(
             new_node.right = null;
 
             // update any counts if we are storing subtrees counts
-            if (options.store_subtree_sizes) {
+            if (options.SubtreeSize != void) {
                 new_node.subtree_size = 1;
 
                 var current_node = new_node.getParent();
@@ -584,7 +781,30 @@ pub fn RBTreeImplementation(
             destination: *Node,
             source: *const Node,
         ) void {
+            if (NodeCache != void) {
+                @compileError("You cannot call this function is you are caching nodes");
+            }
+            moveNodeByCopyWithCache(undefined, root_ref, destination, source);
+        }
+        pub fn moveNodeByCopyWithCache(
+            cache: *NodeCache,
+            root_ref: **Node,
+            destination: *Node,
+            source: *const Node,
+        ) void {
             if (source == destination) return;
+            if (options.cache_nodes) |cache_nodes| {
+                if (cache_nodes.first) {
+                    if (cache.first == source) {
+                        cache.first = destination;
+                    }
+                }
+                if (cache_nodes.last) {
+                    if (cache.last == source) {
+                        cache.last = destination;
+                    }
+                }
+            }
 
             if (source.getDirection()) |dir| {
                 source.getParent().?.setChild(dir, destination);
@@ -623,16 +843,38 @@ pub fn RBTreeImplementation(
             root_ref2: **Node,
             node2: *Node,
         ) void {
+            if (NodeCache != void) {
+                @compileError("You cannot call this function is you are caching nodes");
+            }
+            swapNodeStorageWithCache(
+                undefined,
+                root_ref1,
+                node1,
+                undefined,
+                root_ref2,
+                node2,
+            );
+        }
+        pub fn swapNodeStorageWithCache(
+            /// The root of the tree to which `node1` belongs
+            cache1: *NodeCache,
+            root_ref1: **Node,
+            node1: *Node,
+            /// The root of the tree to which `node2` belongs
+            cache2: *NodeCache,
+            root_ref2: **Node,
+            node2: *Node,
+        ) void {
             if (node1 == node2) return;
 
             var tmp1: Node = undefined;
             var tmp2: Node = undefined;
 
-            moveNodeByCopy(root_ref1, &tmp1, node1);
-            moveNodeByCopy(root_ref2, &tmp2, node2);
+            moveNodeByCopyWithCache(cache1, root_ref1, &tmp1, node1);
+            moveNodeByCopyWithCache(cache2, root_ref2, &tmp2, node2);
 
-            moveNodeByCopy(root_ref1, node2, &tmp1);
-            moveNodeByCopy(root_ref2, node1, &tmp2);
+            moveNodeByCopyWithCache(cache1, root_ref1, node2, &tmp1);
+            moveNodeByCopyWithCache(cache2, root_ref2, node1, &tmp2);
         }
 
         /// Swaps the position of two nodes in the tree.
@@ -794,7 +1036,7 @@ pub fn RBTreeImplementation(
             // if we are maintaining the subtree sizes in each node,
             //   `node` and `new_subtree_root`
             //  then we need to now update the counts for
-            if (options.store_subtree_sizes) {
+            if (options.SubtreeSize != void) {
                 node.subtree_size = 1;
                 if (node.left) |l| {
                     node.subtree_size += l.subtree_size;
@@ -828,6 +1070,33 @@ pub fn RBTreeImplementation(
             ctx: Context,
             node: *Node,
         ) void {
+            if (NodeCache != void) {
+                @compileError("You cannot call this function is you are caching nodes");
+            }
+            removeNodeWithCache(undefined, root_ref_opt, ctx, node);
+        }
+        pub fn removeNodeWithCache(
+            cache: *NodeCache,
+            root_ref_opt: *?*Node,
+            /// The context that would be provided to the order function.
+            ///
+            /// Note that this value is only required as it is provided to the callback functions.
+            /// Thus, for a tree without any augmentation, this value can be set to `undefined`.
+            ctx: Context,
+            node: *Node,
+        ) void {
+            if (options.cache_nodes) |cache_nodes| {
+                if (cache_nodes.first) {
+                    if (cache_nodes.first == node) {
+                        cache.first = node.next();
+                    }
+                }
+                if (cache_nodes.last) {
+                    if (cache_nodes.last == node) {
+                        cache.first = node.prev();
+                    }
+                }
+            }
             // the tree must have a root if it has at least one node
             const root_ref: **Node = if (root_ref_opt.*) |*r| r else unreachable;
 
@@ -920,7 +1189,7 @@ pub fn RBTreeImplementation(
 
                 // We also need to fix the subtree counts if we're keeping them
                 //
-                if (options.store_subtree_sizes) {
+                if (options.SubtreeSize != void) {
                     var current: ?*Node = node.getParent();
                     while (current) |c| : (current = c.getParent()) {
                         c.subtree_size -= 1;
@@ -946,7 +1215,7 @@ pub fn RBTreeImplementation(
             // we remove the node from the tree
             node_parent.setChild(node_direction, null);
             // If we're keeping subtree counts, then we now need to correct them
-            if (options.store_subtree_sizes) {
+            if (options.SubtreeSize != void) {
                 var current: ?*Node = node_parent;
                 while (current) |c| : (current = c.getParent()) {
                     c.subtree_size -= 1;

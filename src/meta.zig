@@ -3,6 +3,8 @@ const std = @import("std");
 const Allocator = std.mem.Allocator;
 const Order = std.math.Order;
 
+const rbtree = @import("./rbtree.zig");
+
 /// Checks if a `Ptr` is a pointer to `Item`.
 /// Note that the pointer is allowed to have the `const`, `volatile` or `allowzero` keyword.
 pub fn isSizeOnePoiner(
@@ -15,15 +17,16 @@ pub fn isSizeOnePoiner(
     };
 }
 
-test isIterator {
-    const Iterator = struct {
-        pub fn next(self: *@This()) ?usize {
-            _ = self;
-            return null;
-        }
-    };
+test isSizeOnePoiner {
+    try std.testing.expect(isSizeOnePoiner(usize, *usize));
+    try std.testing.expect(isSizeOnePoiner(usize, *const usize));
+    try std.testing.expect(isSizeOnePoiner(usize, *allowzero const volatile usize));
 
-    try std.debug.assert(isIterator(usize, Iterator));
+    try std.testing.expect(!isSizeOnePoiner(usize, usize));
+    try std.testing.expect(!isSizeOnePoiner(usize, *isize));
+    try std.testing.expect(!isSizeOnePoiner(usize, **usize));
+    try std.testing.expect(!isSizeOnePoiner(usize, []usize));
+    try std.testing.expect(!isSizeOnePoiner(usize, [*]usize));
 }
 
 /// Checks if a given type is an iterator over a particular type
@@ -54,7 +57,7 @@ pub fn isIterator(
                         return //
                         func.params.len == 1 //
                         and func.params[0].type != null //
-                        and isSizeOnePoiner(Iterator, func.params[0].type.?) //
+                        and (isSizeOnePoiner(Iterator, func.params[0].type.?) or (Iterator == func.params[0].type.?)) //
                         and func.return_type == ?Item;
                     },
                     else => return false,
@@ -242,4 +245,30 @@ pub fn order(
         .int, .float, .comptime_int, .comptime_float => return std.math.order(a, b),
         else => @compileError("cannot compare variables of type " ++ @typeName(T)),
     }
+}
+
+test isIterator {
+    const TestIterator = struct {
+        pub fn next(self: *@This()) ?usize {
+            _ = &self;
+            return null;
+        }
+    };
+
+    std.debug.assert(isIterator(usize, TestIterator));
+
+    const TestIterator2 = struct {
+        // we allow this case if the iterator is just a non-mutable handle
+        pub fn next(self: @This()) ?usize {
+            _ = &self;
+            return null;
+        }
+    };
+
+    std.debug.assert(isIterator(usize, TestIterator2));
+
+    const Tree = rbtree.DefaultRBTree(usize, void);
+
+    std.debug.assert(isIterator(Tree.KV, Tree.KVIterator));
+    std.debug.assert(isIterator(Tree.Entry, Tree.EntryIterator));
 }

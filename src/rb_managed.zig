@@ -3,6 +3,8 @@ const std = @import("std");
 const Allocator = std.mem.Allocator;
 const Order = std.math.Order;
 
+const rbtree = @import("./rbtree.zig");
+
 const unmanaged = @import("./rb_unmanaged.zig");
 
 /// A unique type which is used to tag types which were created using
@@ -50,7 +52,7 @@ pub fn RBTree(
         K,
         V,
         Context,
-        options,
+        options.getNodeOptions(),
     ),
 ) type {
     return struct {
@@ -383,6 +385,28 @@ pub fn RBTree(
             );
         }
 
+        test findLowerBound {
+            var array: [128]u16 = undefined;
+            for (&array, 1..) |*item, i| item.* = @truncate(2 * i);
+
+            var tree = try rbtree.DefaultRBTree(u16, void).initFromSortedSlice(
+                std.testing.allocator,
+                undefined,
+                &array,
+            );
+            defer tree.deinit();
+
+            for (array) |i| {
+                const test1 = i;
+                try std.testing.expectEqual(i, tree.findLowerBound(test1).?.key);
+
+                const test2 = i + 1;
+                try std.testing.expectEqual(i, tree.findLowerBound(test2).?.key);
+            }
+
+            try std.testing.expect(tree.findLowerBound(0) == null);
+        }
+
         pub fn findUpperBound(
             self: Self,
             key: K,
@@ -391,6 +415,28 @@ pub fn RBTree(
                 self.ctx,
                 key,
             );
+        }
+
+        test findUpperBound {
+            var array: [128]u16 = undefined;
+            for (&array, 1..) |*item, i| item.* = @truncate(2 * i);
+
+            var tree = try rbtree.DefaultRBTree(u16, void).initFromSortedSlice(
+                std.testing.allocator,
+                undefined,
+                &array,
+            );
+            defer tree.deinit();
+
+            for (array) |i| {
+                const test1 = i;
+                try std.testing.expectEqual(i, tree.findUpperBound(test1).?.key);
+
+                const test2 = i - 1;
+                try std.testing.expectEqual(i, tree.findUpperBound(test2).?.key);
+            }
+
+            try std.testing.expect(tree.findUpperBound(1024) == null);
         }
 
         pub fn find(

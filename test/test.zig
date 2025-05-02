@@ -1,6 +1,6 @@
 // This file was derived from `rb_tree_tests.py` in the repo
 //   https://github.com/stanislavkozlovski/Red-Black-Tree
-//   
+//
 // Many of the comments contained in this file are also derived from there.
 //
 const std = @import("std");
@@ -166,7 +166,7 @@ test "recoloring_only" {
     root.left = node_m10;
     root.right = node_20;
 
-    var rb_tree: Tree = .{ .root = root, .size = 9 };
+    var rb_tree: Tree = .{ .root = root, .size = 9, .cache = void{} };
     const node_4 = (try rb_tree.insert(allocator, 4, void{}, .no_clobber)).node;
     defer allocator.destroy(node_4);
 
@@ -262,7 +262,7 @@ test "recoloring_two" {
 
     root.left = node_m10;
     root.right = node_20;
-    var rb_tree: Tree = .{ .root = root, .size = 9 };
+    var rb_tree: Tree = .{ .root = root, .size = 9, .cache = void{} };
     const node_19 = (try rb_tree.insert(allocator, 19, void{}, .no_clobber)).node;
     defer allocator.destroy(node_19);
 
@@ -351,7 +351,7 @@ test "right_rotation" {
     root.left = node_m10;
     root.right = node_20;
 
-    var rb_tree: Tree = .{ .root = root, .size = 5 };
+    var rb_tree: Tree = .{ .root = root, .size = 5, .cache = void{} };
     const node_13 = (try rb_tree.insert(allocator, 13, void{}, .no_clobber)).node;
     defer allocator.destroy(node_13);
 
@@ -418,7 +418,7 @@ test "left_rotation_no_sibling" {
     root.left = node_7;
     root.right = rightest;
 
-    var rb_tree: Tree = .{ .root = root, .size = 4 };
+    var rb_tree: Tree = .{ .root = root, .size = 4, .cache = void{} };
     const node_9 = (try rb_tree.insert(allocator, 9, void{}, .no_clobber)).node;
     defer allocator.destroy(node_9);
 
@@ -492,7 +492,7 @@ test "right_rotation_no_sibling_left_subtree" {
 
     root.left = node_m10;
     root.right = node_20;
-    var rb_tree: Tree = .{ .root = root, .size = 5 };
+    var rb_tree: Tree = .{ .root = root, .size = 5, .cache = void{} };
     const node_m12 = (try rb_tree.insert(allocator, -12, void{}, .no_clobber)).node;
     defer allocator.destroy(node_m12);
 
@@ -574,7 +574,7 @@ test "left_right_rotation_no_sibling" {
     root.left = node_m10;
     root.right = node_20;
 
-    var rb_tree: Tree = .{ .root = root, .size = 5 };
+    var rb_tree: Tree = .{ .root = root, .size = 5, .cache = void{} };
     const node_17 = (try rb_tree.insert(allocator, 17, void{}, .no_clobber)).node;
     defer allocator.destroy(node_17);
 
@@ -660,7 +660,7 @@ test "right_left_rotation_no_sibling" {
     root.left = nodem10;
     root.right = node_20;
 
-    var rb_tree: Tree = .{ .root = root, .size = 5 };
+    var rb_tree: Tree = .{ .root = root, .size = 5, .cache = void{} };
     const node_2 = (try rb_tree.insert(allocator, 2, void{}, .no_clobber)).node;
     defer allocator.destroy(node_2);
 
@@ -766,7 +766,7 @@ test "recolor_lr" {
 
     root.left = node_m10;
     root.right = node_20;
-    var rb_tree: Tree = .{ .root = root, .size = 9 };
+    var rb_tree: Tree = .{ .root = root, .size = 9, .cache = void{} };
     const node_4 = (try rb_tree.insert(allocator, 4, void{}, .no_clobber)).node;
     defer allocator.destroy(node_4);
 
@@ -1105,7 +1105,7 @@ test "right_left_rotation_after_recolor" {
 
     root.left = node_5;
     root.right = node_20;
-    var rb_tree: Tree = .{ .root = root, .size = 8 };
+    var rb_tree: Tree = .{ .root = root, .size = 8, .cache = void{} };
     const node_19 = (try rb_tree.insert(allocator, 19, void{}, .no_clobber)).node;
     defer allocator.destroy(node_19);
 
@@ -1228,7 +1228,7 @@ test "right_rotation_after_recolor" {
 
     root.left = node_m10;
     root.right = node_20;
-    var rb_tree: Tree = .{ .root = root, .size = 10 };
+    var rb_tree: Tree = .{ .root = root, .size = 10, .cache = void{} };
     const node_m22 = (try rb_tree.insert(allocator, -22, void{}, .no_clobber)).node;
     defer allocator.destroy(node_m22);
 
@@ -1318,7 +1318,7 @@ test "deletion_root" {
     //          /     \     --Result-->   /
     //        3R      8R                3R
     //
-    var rb_tree: Tree = .{ .root = root, .size = 3 };
+    var rb_tree: Tree = .{ .root = root, .size = 3, .cache = void{} };
     // we remove a node without deallocating it
     _ = Tree.implementation.removeNode(&rb_tree.root, void{}, rb_tree.find(5).?);
 
@@ -1357,7 +1357,7 @@ test "deletion_root_2_nodes" {
     right_child.* = Node.init(.{ .key = 8, .color = .red, .parent = root, .left = null, .right = null });
 
     root.right = right_child;
-    var rb_tree: Tree = .{ .root = root, .size = 2 };
+    var rb_tree: Tree = .{ .root = root, .size = 2, .cache = void{} };
     // we remove a node without deallocating it
     _ = Tree.implementation.removeNode(&rb_tree.root, void{}, rb_tree.find(5).?);
 
@@ -1401,7 +1401,7 @@ test "delete_single_child" {
 
     root.left = left_child;
     root.right = right_child;
-    var rb_tree: Tree = .{ .root = root, .size = 3 };
+    var rb_tree: Tree = .{ .root = root, .size = 3, .cache = void{} };
     // we remove a node without deallocating it
     _ = Tree.implementation.removeNode(&rb_tree.root, void{}, rb_tree.find(6).?);
 
@@ -1497,7 +1497,7 @@ test "delete_single_deep_child" {
 
     root.left = node_10;
     root.right = node_38;
-    var rb_tree: Tree = .{ .root = root, .size = 11 };
+    var rb_tree: Tree = .{ .root = root, .size = 11, .cache = void{} };
     // we remove a node without deallocating it
     _ = Tree.implementation.removeNode(&rb_tree.root, void{}, rb_tree.find(49).?);
 
@@ -1580,7 +1580,7 @@ test "deletion_red_node_red_successor_no_children" {
 
     root.left = node_5;
     root.right = node_35;
-    var rb_tree: Tree = .{ .root = root, .size = 8 };
+    var rb_tree: Tree = .{ .root = root, .size = 8, .cache = void{} };
     // we remove a node without deallocating it
     _ = Tree.implementation.removeNode(&rb_tree.root, void{}, rb_tree.find(35).?);
 
@@ -1681,7 +1681,7 @@ test "mirror_deletion_red_node_red_successor_no_children" {
 
     root.left = node_5;
     root.right = node_35;
-    var rb_tree: Tree = .{ .root = root, .size = 9 };
+    var rb_tree: Tree = .{ .root = root, .size = 9, .cache = void{} };
     // we remove a node without deallocating it
     _ = Tree.implementation.removeNode(&rb_tree.root, void{}, rb_tree.find(5).?);
 
@@ -1787,7 +1787,7 @@ test "deletion_black_node_black_successor_right_red_child" {
     root.left = node_5;
     root.right = node_30;
 
-    var rb_tree: Tree = .{ .root = root, .size = 10 };
+    var rb_tree: Tree = .{ .root = root, .size = 10, .cache = void{} };
     // we remove a node without deallocating it
     _ = Tree.implementation.removeNode(&rb_tree.root, void{}, rb_tree.find(30).?);
 
@@ -1860,7 +1860,7 @@ test "deletion_black_node_black_successor_no_child_case_4" {
 
     root.left = node_m10;
     root.right = node_30;
-    var rb_tree: Tree = .{ .root = root, .size = 5 };
+    var rb_tree: Tree = .{ .root = root, .size = 5, .cache = void{} };
     // we remove a node without deallocating it
     _ = Tree.implementation.removeNode(&rb_tree.root, void{}, rb_tree.find(10).?);
 
@@ -1939,7 +1939,7 @@ test "deletion_black_node_no_successor_case_6" {
 
     root.left = node_m10;
     root.right = node_30;
-    var rb_tree: Tree = .{ .root = root, .size = 5 };
+    var rb_tree: Tree = .{ .root = root, .size = 5, .cache = void{} };
     // we remove a node without deallocating it
     _ = Tree.implementation.removeNode(&rb_tree.root, void{}, rb_tree.find(-10).?);
 
@@ -2019,7 +2019,7 @@ test "mirror_deletion_black_node_no_successor_case_6" {
     node_5.right = node_7;
     root.left = node_5;
     root.right = node_12;
-    var rb_tree: Tree = .{ .root = root, .size = 5 };
+    var rb_tree: Tree = .{ .root = root, .size = 5, .cache = void{} };
     // we remove a node without deallocating it
     _ = Tree.implementation.removeNode(&rb_tree.root, void{}, rb_tree.find(12).?);
 
@@ -2091,7 +2091,7 @@ test "deletion_black_node_no_successor_case_3_then_1" {
 
     root.left = node_m10;
     root.right = node_30;
-    var rb_tree: Tree = .{ .root = root, .size = 3 };
+    var rb_tree: Tree = .{ .root = root, .size = 3, .cache = void{} };
     // we remove a node without deallocating it
     _ = Tree.implementation.removeNode(&rb_tree.root, void{}, rb_tree.find(-10).?);
 
@@ -2188,7 +2188,7 @@ test "deletion_black_node_no_successor_case_3_then_5_then_6" {
 
     root.left = node_m30;
     root.right = node_50;
-    var rb_tree: Tree = .{ .root = root, .size = 9 };
+    var rb_tree: Tree = .{ .root = root, .size = 9, .cache = void{} };
     // we remove a node without deallocating it
     _ = Tree.implementation.removeNode(&rb_tree.root, void{}, rb_tree.find(-40).?);
 
@@ -2349,7 +2349,7 @@ test "mirror_deletion_black_node_no_successor_case_3_then_5_then_6" {
 
     root.left = node_30;
     root.right = node_80;
-    var rb_tree: Tree = .{ .root = root, .size = 9 };
+    var rb_tree: Tree = .{ .root = root, .size = 9, .cache = void{} };
     // we remove a node without deallocating it
     _ = Tree.implementation.removeNode(&rb_tree.root, void{}, rb_tree.find(90).?);
 
@@ -2501,7 +2501,7 @@ test "deletion_black_node_successor_case_2_then_4" {
 
     root.left = node_m10;
     root.right = node_40;
-    var rb_tree: Tree = .{ .root = root, .size = 9 };
+    var rb_tree: Tree = .{ .root = root, .size = 9, .cache = void{} };
     // we remove a node without deallocating it
     _ = Tree.implementation.removeNode(&rb_tree.root, void{}, rb_tree.find(10).?);
 
@@ -2639,7 +2639,7 @@ test "mirror_deletion_black_node_successor_case_2_then_4" {
 
     root.left = node_10;
     root.right = node_30;
-    var rb_tree: Tree = .{ .root = root, .size = 9 };
+    var rb_tree: Tree = .{ .root = root, .size = 9, .cache = void{} };
     // we remove a node without deallocating it
     _ = Tree.implementation.removeNode(&rb_tree.root, void{}, rb_tree.find(15).?);
 
@@ -2799,7 +2799,7 @@ test "delete_tree_one_by_one" {
     //               /  \        /   \
     //             23R  29R     41R   49R
     //
-    var rb_tree: Tree = .{ .root = root, .size = 11 };
+    var rb_tree: Tree = .{ .root = root, .size = 11, .cache = void{} };
     // we remove a node without deallocating it
     _ = Tree.implementation.removeNode(&rb_tree.root, void{}, rb_tree.find(49).?);
     // we remove a node without deallocating it
