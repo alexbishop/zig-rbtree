@@ -1,6 +1,8 @@
 //! This file defines red-black tree nodes.
 const std = @import("std");
 
+const rbtree = @import("./rbtree.zig");
+
 /// Used to represent the colour of a node in the red-black tree.
 ///
 /// This type is backed by a `u1` as, by default, our implementation stores
@@ -417,6 +419,65 @@ pub fn Node(
             }
         }
 
+        test postfixNext {
+            var array: [12]u16 = undefined;
+            for (&array, 1..) |*a, i| {
+                a.* = @intCast(i * 2);
+            }
+            // at this point items = {2,4,6,8,...,24}
+
+            var tree = try rbtree.DefaultRBTree(u16, void).initFromSortedSlice(
+                std.testing.allocator,
+                undefined,
+                &array,
+            );
+            defer tree.deinit();
+
+            // at this point tree looks like the following
+            //
+            //             _____ 16 _______          <- black
+            //            /                 \
+            //           8 ____             22       <- both red
+            //         /       \           /  \
+            //        4        12         20   24    <- all black
+            //      /  \      /  \       /
+            //     2    6   10   14     18           <- all red
+            //
+            // Let's make this a bit more interesting by adding
+            // the value 25 to the tree
+            try tree.add(25);
+
+            // now the tree will look like the following
+            //
+            //             _____ 16 _______           <- black
+            //            /                 \
+            //           8 ____             22        <- both red
+            //         /       \           /  \
+            //        4        12         20   24     <- all black
+            //      /  \      /  \       /       \
+            //     2    6   10   14     18        25   <- all red
+            //
+
+            // the order of this tree when read in prefix order
+            // should then be
+            const postfix_sorted: []const u16 = &.{ 2, 6, 4, 10, 14, 12, 8, 18, 20, 25, 24, 22, 16 };
+
+            // get the first in postfix order
+            var current = tree.findMin();
+
+            // check that we see things in the correct order
+            for (postfix_sorted) |i| {
+                try std.testing.expect(current != null);
+                try std.testing.expect(current.?.key == i);
+
+                current = current.?.postfixNext();
+            }
+
+            // at this point we should have finished visiting all the nodes,
+            // and thus `current` should be `null`
+            try std.testing.expect(current == null);
+        }
+
         /// Obtains the node which would occur after this one in a postfix order
         /// (otherwise known as reverse polish order).
         ///
@@ -430,7 +491,7 @@ pub fn Node(
             } else if (self.left) |left| {
                 return left;
             } else {
-                var current: *const Node = self;
+                var current: *const Self = self;
                 while (current.getDirection()) |dir| {
                     if (dir == .right and current.getParent().?.left != null) {
                         return current.getParent().?.left.?;
@@ -440,6 +501,67 @@ pub fn Node(
                 }
                 return null;
             }
+        }
+
+        test postfixPrev {
+            var array: [12]u16 = undefined;
+            for (&array, 1..) |*a, i| {
+                a.* = @intCast(i * 2);
+            }
+            // at this point items = {2,4,6,8,...,24}
+
+            var tree = try rbtree.DefaultRBTree(u16, void).initFromSortedSlice(
+                std.testing.allocator,
+                undefined,
+                &array,
+            );
+            defer tree.deinit();
+
+            // at this point tree looks like the following
+            //
+            //             _____ 16 _______          <- black
+            //            /                 \
+            //           8 ____             22       <- both red
+            //         /       \           /  \
+            //        4        12         20   24    <- all black
+            //      /  \      /  \       /
+            //     2    6   10   14     18           <- all red
+            //
+            // Let's make this a bit more interesting by adding
+            // the value 25 to the tree
+            try tree.add(25);
+
+            // now the tree will look like the following
+            //
+            //             _____ 16 _______           <- black
+            //            /                 \
+            //           8 ____             22        <- both red
+            //         /       \           /  \
+            //        4        12         20   24     <- all black
+            //      /  \      /  \       /       \
+            //     2    6   10   14     18        25   <- all red
+            //
+
+            // the order of this tree when read in prefix order
+            // should then be
+            const postfix_sorted: []const u16 = &.{ 2, 6, 4, 10, 14, 12, 8, 18, 20, 25, 24, 22, 16 };
+
+            // get the last in postfix order
+            var current = tree.getRoot();
+
+            // we check that the order matches by iterating backwards
+            for (0..postfix_sorted.len) |index| {
+                const i = postfix_sorted[postfix_sorted.len - index - 1];
+
+                try std.testing.expect(current != null);
+                try std.testing.expect(current.?.key == i);
+
+                current = current.?.postfixPrev();
+            }
+
+            // at this point we should have finished visiting all the nodes,
+            // and thus `current` should be `null`
+            try std.testing.expect(current == null);
         }
 
         /// Obtains the node which would occur after this one in a prefix order
@@ -468,7 +590,7 @@ pub fn Node(
             if (self.left) |left| return left;
             if (self.right) |right| return right;
 
-            var current: ?*const Node = self;
+            var current: *const Self = self;
             while (current.getDirection()) |direction| {
                 const parent = current.getParent().?;
                 if (direction == .left and parent.right != null) {
@@ -477,6 +599,65 @@ pub fn Node(
                 current = parent;
             }
             return null;
+        }
+
+        test prefixNext {
+            var array: [12]u16 = undefined;
+            for (&array, 1..) |*a, i| {
+                a.* = @intCast(i * 2);
+            }
+            // at this point items = {2,4,6,8,...,24}
+
+            var tree = try rbtree.DefaultRBTree(u16, void).initFromSortedSlice(
+                std.testing.allocator,
+                undefined,
+                &array,
+            );
+            defer tree.deinit();
+
+            // at this point tree looks like the following
+            //
+            //             _____ 16 _______          <- black
+            //            /                 \
+            //           8 ____             22       <- both red
+            //         /       \           /  \
+            //        4        12         20   24    <- all black
+            //      /  \      /  \       /
+            //     2    6   10   14     18           <- all red
+            //
+            // Let's make this a bit more interesting by adding
+            // the value 25 to the tree
+            try tree.add(25);
+
+            // now the tree will look like the following
+            //
+            //             _____ 16 _______           <- black
+            //            /                 \
+            //           8 ____             22        <- both red
+            //         /       \           /  \
+            //        4        12         20   24     <- all black
+            //      /  \      /  \       /       \
+            //     2    6   10   14     18        25   <- all red
+            //
+
+            // the order of this tree when read in prefix order
+            // should then be
+            const prefix_sorted: []const u16 = &.{ 16, 8, 4, 2, 6, 12, 10, 14, 22, 20, 18, 24, 25 };
+
+            // the first node in prefix order is the root
+            var current = tree.getRoot();
+
+            // we check that the order matches
+            for (prefix_sorted) |i| {
+                try std.testing.expect(current != null);
+                try std.testing.expect(current.?.key == i);
+
+                current = current.?.prefixNext();
+            }
+
+            // at this point we should have finished visiting all the nodes,
+            // and thus `current` should be `null`
+            try std.testing.expect(current == null);
         }
 
         /// Obtains the node which would occur after this one in a prefix order
@@ -490,11 +671,76 @@ pub fn Node(
             if (self.getParent()) |parent| {
                 const direction = self.getDirection().?;
                 if (direction == .left) return parent;
-                if (parent.left != null) return parent.left;
+                if (parent.left) |left| {
+                    const rightmost = left.getRightmostInSubtree();
+                    if (rightmost.left) |left_of_rightmost| return left_of_rightmost;
+                    return rightmost;
+                }
                 return parent;
             } else {
                 return null;
             }
+        }
+
+        test prefixPrev {
+            var array: [12]u16 = undefined;
+            for (&array, 1..) |*a, i| {
+                a.* = @intCast(i * 2);
+            }
+            // at this point items = {2,4,6,8,...,24}
+
+            var tree = try rbtree.DefaultRBTree(u16, void).initFromSortedSlice(
+                std.testing.allocator,
+                undefined,
+                &array,
+            );
+            defer tree.deinit();
+
+            // at this point tree looks like the following
+            //
+            //             _____ 16 _______          <- black
+            //            /                 \
+            //           8 ____             22       <- both red
+            //         /       \           /  \
+            //        4        12         20   24    <- all black
+            //      /  \      /  \       /
+            //     2    6   10   14     18           <- all red
+            //
+            // Let's make this a bit more interesting by adding
+            // the value 25 to the tree
+            try tree.add(25);
+
+            // now the tree will look like the following
+            //
+            //             _____ 16 _______           <- black
+            //            /                 \
+            //           8 ____             22        <- both red
+            //         /       \           /  \
+            //        4        12         20   24     <- all black
+            //      /  \      /  \       /       \
+            //     2    6   10   14     18        25   <- all red
+            //
+
+            // the order of this tree when read in prefix order
+            // should then be
+            const prefix_sorted: []const u16 = &.{ 16, 8, 4, 2, 6, 12, 10, 14, 22, 20, 18, 24, 25 };
+
+            // the rightmost node is the last in prefix order
+            var current = tree.findMax();
+
+            // we check that the order matches by iterating backwards
+            for (0..prefix_sorted.len) |index| {
+                const i = prefix_sorted[prefix_sorted.len - index - 1];
+
+                try std.testing.expect(current != null);
+                try std.testing.expect(current.?.key == i);
+
+                current = current.?.prefixPrev();
+            }
+
+            // at this point we should have finished visiting all the nodes,
+            // and thus `current` should be `null`
+            try std.testing.expect(current == null);
         }
 
         /// Obtains the next node in an in-order traversal,

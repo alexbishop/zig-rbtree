@@ -536,12 +536,12 @@ pub fn RBTreeImplementation(
         ) void {
             if (options.cache_nodes) |cache_nodes| {
                 if (cache_nodes.first) {
-                    if (location.direction == .left and cache_nodes.first == location.parent) {
+                    if (location.direction == .left and cache.first == location.parent) {
                         cache.first = new_node;
                     }
                 }
                 if (cache_nodes.last) {
-                    if (location.direction == .right and cache_nodes.last == location.parent) {
+                    if (location.direction == .right and cache.last == location.parent) {
                         cache.last = new_node;
                     }
                 }
@@ -1087,13 +1087,13 @@ pub fn RBTreeImplementation(
         ) void {
             if (options.cache_nodes) |cache_nodes| {
                 if (cache_nodes.first) {
-                    if (cache_nodes.first == node) {
+                    if (cache.first == node) {
                         cache.first = node.next();
                     }
                 }
                 if (cache_nodes.last) {
-                    if (cache_nodes.last == node) {
-                        cache.first = node.prev();
+                    if (cache.last == node) {
+                        cache.last = node.prev();
                     }
                 }
             }
