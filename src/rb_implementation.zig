@@ -5,6 +5,8 @@
 const std = @import("std");
 const Order = std.math.Order;
 
+const rbtree = @import("./rbtree.zig");
+
 const RBNode = @import("./rb_node.zig");
 
 /// Options used to construct a red-black tree
@@ -202,7 +204,6 @@ pub fn RBTreeImplementation(
     ),
 ) type {
     return struct {
-
         /// We tag the struct so that we can later identify it as the implementation
         /// of a red-black tree
         const tag = RBTreeImplementationTag;
@@ -786,6 +787,7 @@ pub fn RBTreeImplementation(
             }
             moveNodeByCopyWithCache(undefined, root_ref, destination, source);
         }
+
         pub fn moveNodeByCopyWithCache(
             cache: *NodeCache,
             root_ref: **Node,
@@ -821,6 +823,62 @@ pub fn RBTreeImplementation(
             }
 
             destination.* = source.*;
+        }
+
+        test moveNodeByCopyWithCache {
+            var array: [12]u16 = undefined;
+            for (&array, 1..) |*a, i| {
+                a.* = @intCast(i * 2);
+            }
+            // at this point items = {2,4,6,8,...,24}
+            //
+
+            const Tree = rbtree.RBTree(u16, void, void, rbtree.defaultOrder(u16), .{
+                .cache_nodes = .{
+                    .first = true,
+                    .last = true,
+                },
+            }, .{});
+
+            var tree = try Tree.initFromSortedSlice(
+                std.testing.allocator,
+                undefined,
+                &array,
+            );
+            defer tree.deinit();
+
+            // at this point tree looks like the following
+            //
+            //             _____ 16 _______          <- black
+            //            /                 \
+            //           8 ____             22       <- both red
+            //         /       \           /  \
+            //        4        12         20   24    <- all black
+            //      /  \      /  \       /
+            //     2    6   10   14     18           <- all red
+            //
+            // Let's make this a bit more interesting by adding
+            // the value 25 to the tree
+
+            // let's create a new node to move into
+            const new_node = try std.testing.allocator.create(Tree.Node);
+            const old_node = tree.find(18).?;
+
+            if (tree.unmanaged.root) |*root| {
+                Tree.UnmanagedType.implementation.moveNodeByCopyWithCache(
+                    &tree.unmanaged.cache,
+                    root,
+                    new_node,
+                    old_node,
+                );
+            } else {
+                try std.testing.expect(false);
+            }
+            defer std.testing.allocator.destroy(old_node);
+            old_node.key = 0; // clear it so we can recognise if something went wrong
+
+            // check if 18 still exists in the tree
+            try std.testing.expect(tree.find(18) != null);
         }
 
         /// This function swaps the storage of two nodes

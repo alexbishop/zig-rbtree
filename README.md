@@ -47,6 +47,9 @@ If you don't like this implementation, here are some alternatives which either s
   - [Haeryu/rbtree](https://github.com/Haeryu/rbtree): stores a red-black tree in a array
   - [Zig compiler implementation](https://github.com/ziglang/std-lib-orphanage/blob/master/std/rb.zig):
         the now orphaned implementation which appeared in the Zig compiler
+  - [JamesErrington/zig-rbtree](https://github.com/JamesErrington/zig-rbtree)
+  - [avdva/zigavl](https://github.com/avdva/zigavl):
+        an implementation of an AVL tree
   - [pmkap/zig-btreemap](https://github.com/pmkap/zig-btreemap):
         an implementation of B-trees which is another balanced tree data structure
   - [judofyr/rgb-tree](https://github.com/judofyr/rgb-tree):
