@@ -249,7 +249,7 @@ pub fn order(
 
 test isIterator {
     const TestIterator = struct {
-        pub fn next(self: *@This()) ?usize {
+        fn next(self: *@This()) ?usize {
             _ = &self;
             return null;
         }
@@ -259,7 +259,7 @@ test isIterator {
 
     const TestIterator2 = struct {
         // we allow this case if the iterator is just a non-mutable handle
-        pub fn next(self: @This()) ?usize {
+        fn next(self: @This()) ?usize {
             _ = &self;
             return null;
         }
