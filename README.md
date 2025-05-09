@@ -44,7 +44,7 @@ For full documentation with some examples, see https://alexbishop.github.io/zig-
 
 If you don't like this implementation, here are some alternatives which either solve the same problem or a similar problem:
 
-  - [Haeryu/rbtree](https://github.com/Haeryu/rbtree): stores a red-black tree in a array
+  - [Haeryu/rbtree](https://github.com/Haeryu/rbtree): stores a red-black tree in an array
   - [Zig standard library](https://github.com/ziglang/std-lib-orphanage/blob/master/std/rb.zig):
         the now orphaned implementation which used to appear in the zig standard library
   - [JamesErrington/zig-rbtree](https://github.com/JamesErrington/zig-rbtree)
@@ -356,13 +356,21 @@ Notice that each of our layers of abstraction allow for options which augment th
 pub const Options = struct {
     /// Indicates if each node of the tree should maintain a count of the
     /// number of elements in its associated subtree
-    SubtreeSize: bool = false,
+    SubtreeSize: type = void,
     /// Indicates if the color of a red-black tree node should be stored
     /// as the least-significant bit of the parent pointer
     store_color_in_parent_pointer: bool = true,
     /// Gives any additional data which should be stored as part of each node.
     /// This type is used in augmented red-black trees.
     AdditionalNodeData: type = void,
+    /// Indicates if the implemenation should cache the first and/or last node
+    /// in the tree.
+    cache_nodes: ?struct {
+        /// cache the first node of the tree
+        first: bool = false,
+        /// cache the last node of the tree
+        last: bool = false,
+    } = null,
 };
 ```
 
