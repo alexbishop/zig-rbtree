@@ -282,9 +282,7 @@ test getNodeAtIndex {
 /// const result: ?*Node = current_node;
 /// ```
 ///
-/// Note that this implenentation is more effiicent then the above code.
-/// In particular, the above code would run in time `O(distance log(size))` time, where
-/// `size` is the size of the red-black tree.
+/// Note that this implenentation is more efficient then the above code.
 pub fn advanceNext(
     comptime Node: type,
     node: *Node,
@@ -387,9 +385,7 @@ test advanceNext {
 /// const result: ?*Node = current_node;
 /// ```
 ///
-/// Note that this implenentation is more effiicent then the above code.
-/// In particular, the above code would run in time `O(distance log(size))` time, where
-/// `size` is the size of the red-black tree.
+/// Note that this implenentation is more efficient then the above code.
 pub fn advancePrev(
     comptime Node: type,
     node: *Node,
