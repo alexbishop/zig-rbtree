@@ -19,7 +19,7 @@ For full documentation with some examples, see https://alexbishop.github.io/zig-
 ## Features
 
   1. Multiple layers of abstraction for different use cases
-  2. Non-recursive implementation of search, insert and delete *(so we don't blow up your stack)*
+  2. Non-recursive implementation of search, insert and delete
   3. Create a red-black tree from a sorted list in O(n) time without the need for rotates, recolours or swaps.
      This implementation does not use recursion.
   4. Takes order functions which take a context parameter so you can change order behaviour at runtime

@@ -3,7 +3,7 @@
 //! This library contains an implementation of augmented red-black tree
 //! with 3 layers of abstraction.
 //!
-//! This is the documentation for version 1.0.2 of the library.
+//! This is the documentation for version 1.1.0 of the library.
 //! See the [repo on GitHub](https://github.com/alexbishop/zig-rbtree) for
 //! the code.
 //!
@@ -12,13 +12,13 @@
 //! ### Quickstart
 //!
 //! For install instructions, see the
-//! [GitHub release](https://github.com/alexbishop/zig-rbtree/releases/tag/v1.0.2).
+//! [GitHub release](https://github.com/alexbishop/zig-rbtree/releases/tag/v1.1.0).
 //!
 //! For beginners and general use, we recommend using the function `DefaultRBTree` or
 //! `DefaultRBTreeUnmanaged` to construct your red-black trees.
 //!
 //! An example of the usage of `DefaultRBTree` is given in the
-//! [GitHub release](https://github.com/alexbishop/zig-rbtree/releases/tag/v1.0.2).
+//! [GitHub release](https://github.com/alexbishop/zig-rbtree/releases/tag/v1.1.0).
 //!
 //! For an example of an augmented red-black tree, see `example/augmented_example.zig`
 //! in the source for this library which you can find
@@ -27,7 +27,7 @@
 //! ### Features
 //!
 //!   1. Multiple layers of abstraction for different use cases
-//!   2. Non-recursive implementation of search, insert and delete *(so we don't blow up your stack)*
+//!   2. Non-recursive implementation of search, insert and delete
 //!   3. Create a red-black tree from a sorted list in `O(n)` time without the need for rotates, recolours or swaps.
 //!      This implementation does not use recursion.
 //!   4. Takes order functions which take a context parameter so you can change order behaviour at runtime

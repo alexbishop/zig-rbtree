@@ -259,3 +259,211 @@ test getNodeAtIndex {
     const not_in_tree = getNodeAtIndex(Tree.Node, tree.getRoot().?, 1000);
     try std.testing.expect(not_in_tree == null);
 }
+
+/// Calling this function is logically equivalent to calling `next` a total of
+/// `distance` times on the given node.
+///
+/// This code runs in time `O(log(size))` where `size` is the size of the red-black
+/// tree to which the given node belongs.
+///
+/// That is, this function is logically equivalent to the following code.
+///
+/// ```zig
+/// var remaining_distance: usize = distance;
+/// var current_node: ?*Node = node;
+/// while(remaining_distance > 0) {
+///     if (current_node) |n| {
+///         current_node = n.next();
+///         remaining_distance -= 1;
+///     } else {
+///         break;
+///     }
+/// }
+/// const result: ?*Node = current_node;
+/// ```
+///
+/// Note that this implenentation is more effiicent then the above code.
+/// In particular, the above code would run in time `O(distance log(size))` time, where
+/// `size` is the size of the red-black tree.
+pub fn advanceNext(
+    comptime Node: type,
+    node: *Node,
+    distance: usize,
+) ?*Node {
+    comptime assertNodeType(Node);
+
+    var current_node: *Node = node;
+    var current_distance: usize = distance;
+
+    while (current_distance > 0) {
+        if (current_node.right) |right| {
+            if (current_distance <= right.subtree_size) {
+                return getNodeAtIndex(Node, right, current_distance - 1);
+            }
+
+            // we find the next node after the right subtree
+            while (current_node.getDirection() == .right) : (current_node = current_node.getParent().?) {}
+
+            // now either current_node is the root, or the left child of its parent
+            if (current_node.getParent()) |parent| {
+                current_node = parent;
+                current_distance -= (right.subtree_size + 1);
+            } else {
+                return null;
+            }
+        } else {
+            // we need to move up the tree and find the next node
+            while (current_node.getDirection() == .right) : (current_node = current_node.getParent().?) {}
+
+            // now either current_node is the root, or the left child of its parent
+            if (current_node.getParent()) |parent| {
+                current_node = parent;
+                current_distance -= 1;
+            } else {
+                return null;
+            }
+        }
+    }
+
+    return current_node;
+}
+
+test advanceNext {
+    var array: [120]u16 = undefined;
+    for (&array, 0..) |*item, i| item.* = @intCast(i);
+
+    const Tree = rbtreelib.RBTree(
+        u16,
+        void,
+        void,
+        rbtreelib.defaultOrder(u16),
+        .{
+            .SubtreeSize = u16,
+        },
+        .{},
+    );
+
+    var tree = try Tree.initFromSortedSlice(
+        std.testing.allocator,
+        undefined,
+        &array,
+    );
+    defer tree.deinit();
+
+    for (array) |i| {
+        for (array) |distance| {
+            const start = tree.find(i).?;
+            const advanced = advanceNext(Tree.Node, start, distance);
+
+            if (i + distance < array.len) {
+                try std.testing.expect(advanced != null);
+                try std.testing.expect(advanced.?.key == i + distance);
+            } else {
+                try std.testing.expect(advanced == null);
+            }
+        }
+    }
+}
+
+/// Calling this function is logically equivalent to calling `prev` a total of
+/// `distance` times on the given node.
+///
+/// This code runs in time `O(log(size))` where `size` is the size of the red-black
+/// tree to which the given node belongs.
+///
+/// That is, this function is logically equivalent to the following code.
+///
+/// ```zig
+/// var remaining_distance: usize = distance;
+/// var current_node: ?*Node = node;
+/// while(remaining_distance > 0) {
+///     if (current_node) |n| {
+///         current_node = n.prev();
+///         remaining_distance -= 1;
+///     } else {
+///         break;
+///     }
+/// }
+/// const result: ?*Node = current_node;
+/// ```
+///
+/// Note that this implenentation is more effiicent then the above code.
+/// In particular, the above code would run in time `O(distance log(size))` time, where
+/// `size` is the size of the red-black tree.
+pub fn advancePrev(
+    comptime Node: type,
+    node: *Node,
+    distance: usize,
+) ?*Node {
+    comptime assertNodeType(Node);
+
+    var current_node: *Node = node;
+    var current_distance: usize = distance;
+
+    while (current_distance > 0) {
+        if (current_node.left) |left| {
+            if (current_distance <= left.subtree_size) {
+                return getNodeAtIndex(Node, left, left.subtree_size - current_distance);
+            }
+
+            while (current_node.getDirection() == .left) : (current_node = current_node.getParent().?) {}
+
+            // now either current_node is the root, or the right child of its parent
+            if (current_node.getParent()) |parent| {
+                current_node = parent;
+                current_distance -= (left.subtree_size + 1);
+            } else {
+                return null;
+            }
+        } else {
+            while (current_node.getDirection() == .left) : (current_node = current_node.getParent().?) {}
+
+            // now either current_node is the root, or the right child of its parent
+            if (current_node.getParent()) |parent| {
+                current_node = parent;
+                current_distance -= 1;
+            } else {
+                return null;
+            }
+        }
+    }
+
+    return current_node;
+}
+
+test advancePrev {
+    var array: [120]u16 = undefined;
+    for (&array, 0..) |*item, i| item.* = @intCast(i);
+
+    const Tree = rbtreelib.RBTree(
+        u16,
+        void,
+        void,
+        rbtreelib.defaultOrder(u16),
+        .{
+            .SubtreeSize = u16,
+        },
+        .{},
+    );
+
+    var tree = try Tree.initFromSortedSlice(
+        std.testing.allocator,
+        undefined,
+        &array,
+    );
+    defer tree.deinit();
+
+    for (array) |i| {
+        for (array) |distance| {
+            const start = tree.find(i).?;
+            const advanced = advancePrev(Tree.Node, start, distance);
+
+            if (i >= distance) {
+                try std.testing.expect(advanced != null);
+                try std.testing.expect(advanced.?.key == i - distance);
+            } else {
+                try std.testing.expect(advanced == null);
+            }
+        }
+    }
+}
