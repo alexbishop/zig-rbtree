@@ -45,8 +45,8 @@ For full documentation with some examples, see https://alexbishop.github.io/zig-
 If you don't like this implementation, here are some alternatives which either solve the same problem or a similar problem:
 
   - [Haeryu/rbtree](https://github.com/Haeryu/rbtree): stores a red-black tree in a array
-  - [Zig compiler implementation](https://github.com/ziglang/std-lib-orphanage/blob/master/std/rb.zig):
-        the now orphaned implementation which appeared in the Zig compiler
+  - [Zig standard library](https://github.com/ziglang/std-lib-orphanage/blob/master/std/rb.zig):
+        the now orphaned implementation which used to appear in the zig standard library
   - [JamesErrington/zig-rbtree](https://github.com/JamesErrington/zig-rbtree)
   - [avdva/zigavl](https://github.com/avdva/zigavl):
         an implementation of an AVL tree
