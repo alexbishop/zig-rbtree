@@ -28,7 +28,7 @@ jobs:
       - name: Setup Pages
         uses: actions/configure-pages@v5
       - name: Enable Zig
-        uses: mlugg/setup-zig@v1 
+        uses: mlugg/setup-zig@v2
         with:
           version: 0.15.1
           use-cache: false
