@@ -4,7 +4,7 @@
 
 An extensible implementation of augmented red-black trees in the Zig programming language.
 
-**Note:** This package is written for zig version 0.14.0.
+**Note:** This package is written for zig version 0.15.1.
 
 This library is released under the MIT license (you should have a copy of the LICENSE file with this source code).
 

@@ -45,9 +45,10 @@ pub fn build(b: *std.Build) !void {
 
             const some_test = b.addTest(.{
                 .name = test_name,
-                .root_source_file = b.path(full_path),
-                .target = target,
-                .optimize = optimize,
+                .root_module = b.createModule(.{
+                    .root_source_file = b.path(full_path),
+                    .target = target,
+                }),
             });
             some_test.root_module.addImport("rbtree", module);
             const run_some_test = b.addRunArtifact(some_test);
@@ -60,11 +61,9 @@ pub fn build(b: *std.Build) !void {
     //-----------------------------------------------------
     //
     {
-        const rbtree_docs_lib = b.addStaticLibrary(.{
+        const rbtree_docs_lib = b.addLibrary(.{
             .name = "rbtree",
-            .root_source_file = b.path("src/rbtree.zig"),
-            .target = target,
-            .optimize = optimize,
+            .root_module = module,
         });
         const docs_step = b.step("docs", "Emit docs");
         const docs_install = b.addInstallDirectory(.{
