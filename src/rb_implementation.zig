@@ -166,7 +166,7 @@ const RBTreeImplementationTag = opaque {};
 /// `RBTreeImplementation` can be obtained as `T.args`.
 pub fn isRBTreeImplementation(comptime T: type) bool {
     switch (@typeInfo(T)) {
-        .@"struct" => |_| {
+        .@"struct" => {
             if (@hasDecl(T, "tag")) {
                 switch (@typeInfo(@TypeOf(T.tag))) {
                     .type => return (T.tag == RBTreeImplementationTag),

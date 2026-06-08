@@ -4,7 +4,7 @@
 
 An extensible implementation of augmented red-black trees in the Zig programming language.
 
-**Note:** This package is written for zig version 0.15.1.
+**Note:** This package is written for zig version 0.16.0.
 
 This library is released under the MIT license (you should have a copy of the LICENSE file with this source code).
 
@@ -82,9 +82,8 @@ const rbtreelib = @import("rbtree");
 
 pub const DefaultRBTree = rbtreelib.DefaultRBTree;
 
-pub fn main() !void {
-    var gpa = std.heap.GeneralPurposeAllocator(.{}){};
-    const allocator = gpa.allocator();
+pub fn main(init: std.process.Init) !void {
+    const allocator = init.gpa;
 
     const Tree = DefaultRBTree(i32, f32);
 

@@ -84,7 +84,7 @@ const NodeTag = opaque {};
 /// were passed to the `Node` function as `N.args`.
 pub fn isNode(comptime N: type) bool {
     switch (@typeInfo(N)) {
-        .@"struct" => |_| {
+        .@"struct" => {
             if (@hasDecl(N, "tag")) {
                 switch (@typeInfo(@TypeOf(N.tag))) {
                     .type => return (N.tag == NodeTag),

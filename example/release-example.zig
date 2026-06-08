@@ -3,18 +3,12 @@ const rbtreelib = @import("rbtree");
 
 pub const DefaultRBTree = rbtreelib.DefaultRBTree;
 
-var use_testing_allocator: bool = false;
 var enable_print: bool = true;
 
 pub fn main() !void {
-    var gpa = std.heap.GeneralPurposeAllocator(.{}){};
+    var gpa: std.heap.DebugAllocator(.{}) = .init;
+    const allocator = gpa.allocator();
     defer _ = gpa.deinit();
-
-    const allocator =
-        if (use_testing_allocator)
-            std.testing.allocator
-        else
-            gpa.allocator();
 
     const Tree = DefaultRBTree(i32, f32);
 
@@ -58,7 +52,6 @@ pub fn main() !void {
 
 test {
     // turn off the debug functions for this test
-    use_testing_allocator = true;
     enable_print = false;
     // run the test
     try main();

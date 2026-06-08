@@ -17,7 +17,7 @@ const RBTreeTag = opaque {};
 /// `RBTree` can be ontained as `T.args`.
 pub fn isRBTree(comptime T: type) bool {
     switch (@typeInfo(T)) {
-        .@"struct" => |_| {
+        .@"struct" => {
             if (@hasDecl(T, "tag")) {
                 switch (@typeInfo(@TypeOf(T.tag))) {
                     .type => return (T.tag == RBTreeTag),

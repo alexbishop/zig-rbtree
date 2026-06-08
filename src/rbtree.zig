@@ -3,22 +3,22 @@
 //! This library contains an implementation of augmented red-black tree
 //! with 3 layers of abstraction.
 //!
-//! This is the documentation for version 1.1.1 of the library.
+//! This is the documentation for version 1.2.0 of the library.
 //! See the [repo on GitHub](https://github.com/alexbishop/zig-rbtree) for
 //! the code.
 //!
-//! **Note:** This version of the library is written for Zig version 0.15.1.
+//! **Note:** This version of the library is written for Zig version 0.16.0.
 //!
 //! ### Quickstart
 //!
 //! For install instructions, see the
-//! [GitHub release](https://github.com/alexbishop/zig-rbtree/releases/tag/v1.1.1).
+//! [GitHub release](https://github.com/alexbishop/zig-rbtree/releases/tag/v1.2.0).
 //!
 //! For beginners and general use, we recommend using the function `DefaultRBTree` or
 //! `DefaultRBTreeUnmanaged` to construct your red-black trees.
 //!
 //! An example of the usage of `DefaultRBTree` is given in the
-//! [GitHub release](https://github.com/alexbishop/zig-rbtree/releases/tag/v1.1.1).
+//! [GitHub release](https://github.com/alexbishop/zig-rbtree/releases/tag/v1.2.0).
 //!
 //! For an example of an augmented red-black tree, see `example/augmented_example.zig`
 //! in the source for this library which you can find

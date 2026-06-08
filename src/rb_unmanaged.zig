@@ -23,7 +23,7 @@ const RBTreeUnmanagedTag = opaque {};
 /// `RBTreeUnmanaged` can be obtained as `T.args`.
 pub fn isRBTreeUnmanaged(comptime T: type) bool {
     switch (@typeInfo(T)) {
-        .@"struct" => |_| {
+        .@"struct" => {
             if (@hasDecl(T, "tag")) {
                 switch (@typeInfo(@TypeOf(T.tag))) {
                     .type => return (T.tag == RBTreeUnmanagedTag),

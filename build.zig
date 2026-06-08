@@ -29,13 +29,13 @@ pub fn build(b: *std.Build) !void {
         const dir = try b.build_root.join(b.allocator, &.{search_dir});
         defer b.allocator.free(dir);
 
-        var open_dir = try std.fs.cwd().openDir(dir, .{ .iterate = true });
-        defer open_dir.close();
+        var open_dir = try std.Io.Dir.cwd().openDir(b.graph.io, dir, .{ .iterate = true });
+        defer open_dir.close(b.graph.io);
 
         var walker = try open_dir.walk(b.allocator);
         defer walker.deinit();
 
-        while (try walker.next()) |entry| {
+        while (try walker.next(b.graph.io)) |entry| {
             const full_path = b.pathJoin(&.{ search_dir, entry.path });
             if (!std.mem.endsWith(u8, full_path, ".zig")) continue;
 
@@ -54,6 +54,23 @@ pub fn build(b: *std.Build) !void {
             const run_some_test = b.addRunArtifact(some_test);
             test_step.dependOn(&run_some_test.step);
         }
+    }
+
+    //------------------------------------------------------------
+    // Build the example code
+    //------------------------------------------------------------
+    {
+        const example_mod_summary = b.createModule(.{
+            .root_source_file = b.path("example/release-example.zig"),
+            .target = target,
+            .optimize = optimize,
+        });
+        const example_summary = b.addExecutable(.{
+            .name = "example",
+            .root_module = example_mod_summary,
+        });
+        example_summary.root_module.addImport("rbtree", module);
+        b.installArtifact(example_summary);
     }
 
     //-----------------------------------------------------
