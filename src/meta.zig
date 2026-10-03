@@ -55,9 +55,10 @@ pub fn isIterator(
                 switch (@typeInfo(@TypeOf(Iterator.next))) {
                     .@"fn" => |func| {
                         return //
-                        func.params.len == 1 //
-                        and func.params[0].type != null //
-                        and (isSizeOnePoiner(Iterator, func.params[0].type.?) or (Iterator == func.params[0].type.?)) //
+                        func.param_attrs.len == 1 //
+                        and func.param_types[0] != null //
+                        and (isSizeOnePoiner(Iterator, func.param_types[0].?) or (Iterator == func.param_types[0].?)) //
+                        and func.return_type != null //
                         and func.return_type == ?Item;
                     },
                     else => return false,
@@ -249,7 +250,7 @@ pub fn order(
 
 test isIterator {
     const TestIterator = struct {
-        fn next(self: *@This()) ?usize {
+        pub fn next(self: *@This()) ?usize {
             _ = &self;
             return null;
         }
@@ -259,7 +260,7 @@ test isIterator {
 
     const TestIterator2 = struct {
         // we allow this case if the iterator is just a non-mutable handle
-        fn next(self: @This()) ?usize {
+        pub fn next(self: @This()) ?usize {
             _ = &self;
             return null;
         }

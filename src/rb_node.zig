@@ -160,7 +160,7 @@ pub fn Node(
         }
 
         /// A hidden tag used to indicate that this type was created using the `Node` function.
-        const tag = NodeTag;
+        pub const tag = NodeTag;
         /// The arguments which were passed to the `Node` function to create this type.
         ///
         /// These values are provided in order to enable metaprogramming.
@@ -226,7 +226,7 @@ pub fn Node(
         pub const InitArgs = struct {
             parent: ?*Self = null,
             color: NodeColor = .black,
-            subtree_size: options.SubtreeSize = if (options.SubtreeSize == void) void{} else 1,
+            subtree_size: options.SubtreeSize = if (options.SubtreeSize == void) {} else 1,
             left: ?*Self = null,
             right: ?*Self = null,
             key: K = undefined,

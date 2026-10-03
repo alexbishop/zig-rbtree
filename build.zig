@@ -26,10 +26,10 @@ pub fn build(b: *std.Build) !void {
     //      zig build test --summary all
     //
     for ([_][]const u8{ "src", "test", "example" }) |search_dir| {
-        const dir = try b.build_root.join(b.allocator, &.{search_dir});
-        defer b.allocator.free(dir);
+        // const dir = try b.root.join(b.allocator, search_dir);
+        // defer b.allocator.free(dir);
 
-        var open_dir = try std.Io.Dir.cwd().openDir(b.graph.io, dir, .{ .iterate = true });
+        var open_dir = try std.Io.Dir.cwd().openDir(b.graph.io, search_dir, .{ .iterate = true });
         defer open_dir.close(b.graph.io);
 
         var walker = try open_dir.walk(b.allocator);
@@ -39,7 +39,7 @@ pub fn build(b: *std.Build) !void {
             const full_path = b.pathJoin(&.{ search_dir, entry.path });
             if (!std.mem.endsWith(u8, full_path, ".zig")) continue;
 
-            const test_name: []u8 = b.dupe(full_path[0..(full_path.len - 4)]);
+            const test_name: []u8 = try b.allocator.dupe(u8, full_path[0..(full_path.len - 4)]);
             std.mem.replaceScalar(u8, test_name, '\\', '.');
             std.mem.replaceScalar(u8, test_name, '/', '.');
 

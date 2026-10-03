@@ -18,7 +18,7 @@ test "cache first" {
     // let's initialise a tree
     var tree = try Tree.initFromSortedSlice(
         std.testing.allocator,
-        void{},
+        {},
         &[_]usize{ 1, 40, 100 },
     );
     defer tree.deinit();
@@ -96,7 +96,7 @@ test "cache last" {
     // let's initialise a tree
     var tree = try Tree.initFromSortedSlice(
         std.testing.allocator,
-        void{},
+        {},
         &[_]usize{ 1, 40, 100 },
     );
     defer tree.deinit();

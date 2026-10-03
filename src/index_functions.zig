@@ -177,12 +177,12 @@ test getKeyIndex {
     // where key i is at index i
 
     for (array) |i| {
-        const result = getKeyIndex(Tree, tree.getRoot().?, void{}, i);
+        const result = getKeyIndex(Tree, tree.getRoot().?, {}, i);
         try std.testing.expect(result != null);
         try std.testing.expect(result.?.index == i);
     }
 
-    const not_in_tree = getKeyIndex(Tree, tree.getRoot().?, void{}, 1000);
+    const not_in_tree = getKeyIndex(Tree, tree.getRoot().?, {}, 1000);
     try std.testing.expect(not_in_tree == null);
 }
 

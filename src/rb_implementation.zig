@@ -67,13 +67,16 @@ pub const Options = struct {
     // The following compile-time checks ensure that this remains true if new
     // values are added to the Options used by `RBNode.Node`.
     comptime {
-        for (@typeInfo(RBNode.NodeOptions).@"struct".fields) |field| {
-            if (std.meta.fieldIndex(Options, field.name)) |field_index| {
-                if (@typeInfo(Options).@"struct".fields[field_index].type != field.type) {
-                    @compileError("Option field '" ++ field.name ++ "' has the wrong type");
+        for (
+            @typeInfo(RBNode.NodeOptions).@"struct".field_names,
+            @typeInfo(RBNode.NodeOptions).@"struct".field_types,
+        ) |fname, ftype| {
+            if (std.meta.fieldIndex(Options, fname)) |field_index| {
+                if (@typeInfo(Options).@"struct".field_types[field_index] != ftype) {
+                    @compileError("Option field '" ++ fname ++ "' has the wrong type");
                 }
             } else {
-                @compileError("Option does not have field '" ++ field.name ++ "'");
+                @compileError("Option does not have field '" ++ fname ++ "'");
             }
         }
     }
@@ -206,7 +209,7 @@ pub fn RBTreeImplementation(
     return struct {
         /// We tag the struct so that we can later identify it as the implementation
         /// of a red-black tree
-        const tag = RBTreeImplementationTag;
+        pub const tag = RBTreeImplementationTag;
         /// The arguments which were passed when creating this struct
         pub const args = .{
             .K = K,
@@ -238,8 +241,8 @@ pub fn RBTreeImplementation(
                 if (cache_nodes.first or cache_nodes.last)
                     struct {
                         pub const blank: @This() = .{
-                            .first = if (cache_nodes.first) null else void{},
-                            .last = if (cache_nodes.last) null else void{},
+                            .first = if (cache_nodes.first) null else {},
+                            .last = if (cache_nodes.last) null else {},
                         };
                         first: if (cache_nodes.first) ?*Node else void,
                         last: if (cache_nodes.last) ?*Node else void,

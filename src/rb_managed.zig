@@ -60,7 +60,7 @@ pub fn RBTree(
 
         /// We tag the struct so that we can later identify it as an unmanaged tree.
         /// This is important for metaprogramming.
-        const tag = RBTreeTag;
+        pub const tag = RBTreeTag;
         /// The arguments which were passed when creating this struct
         pub const args = .{
             .K = K,

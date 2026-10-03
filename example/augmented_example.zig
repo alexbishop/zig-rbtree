@@ -219,7 +219,7 @@ test "max_subtrees" {
         .{},
     );
 
-    var tree = Tree.init(allocator, void{});
+    var tree = Tree.init(allocator, {});
     defer tree.deinit();
 
     // The following two arrays contain permutations of the interval [-100,100]

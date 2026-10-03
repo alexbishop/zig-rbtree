@@ -72,7 +72,7 @@ pub fn RBTreeUnmanaged(
 
         /// We tag the struct so that we can later identify it as an unmanaged tree.
         /// This is important for metaprogramming.
-        const tag = RBTreeUnmanagedTag;
+        pub const tag = RBTreeUnmanagedTag;
         /// The arguments which were passed when creating this struct
         pub const args = .{
             .K = K,
@@ -122,9 +122,9 @@ pub fn RBTreeUnmanaged(
             if (options.SubtreeSize != void) {
                 return .{
                     .root = null,
-                    .size = void{},
+                    .size = {},
                     .cache = if (implementation.NodeCache == void)
-                        void{}
+                        {}
                     else
                         implementation.NodeCache.blank,
                 };
@@ -133,7 +133,7 @@ pub fn RBTreeUnmanaged(
                     .root = null,
                     .size = 0,
                     .cache = if (implementation.NodeCache == void)
-                        void{}
+                        {}
                     else
                         implementation.NodeCache.blank,
                 };
@@ -494,7 +494,7 @@ pub fn RBTreeUnmanaged(
                 }
                 return .{
                     .root = root,
-                    .size = void{},
+                    .size = {},
                     .cache = cache,
                 };
             } else {
@@ -1795,7 +1795,7 @@ pub fn RBTreeUnmanaged(
             );
             defer tree.deinit(std.testing.allocator);
 
-            var cloned = try tree.cloneWithNewContext(std.testing.allocator, void{});
+            var cloned = try tree.cloneWithNewContext(std.testing.allocator, {});
             defer cloned.deinit(std.testing.allocator);
 
             // check that they represent the same tree

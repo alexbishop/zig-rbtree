@@ -12,7 +12,7 @@ pub fn main() !void {
 
     const Tree = DefaultRBTree(i32, f32);
 
-    var tree = Tree.init(allocator, void{});
+    var tree = Tree.init(allocator, {});
     defer tree.deinit();
 
     // insert some stuff into the tree

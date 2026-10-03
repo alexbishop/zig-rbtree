@@ -232,10 +232,10 @@ match($0, /^[[:space:]]*(rb_|)tree\.add\(([^)]*)\)/, m) && (status == 1) {
   tmp_node_name = generateNodeNameFromInt(m[2])
 
   if (node_variables[tmp_node_name] == 1) {
-    printf("    const %s = (try rb_tree.insert(allocator, %s, void{}, .no_clobber)).node;\n", tmp_node_name "_v2", m[2])
+    printf("    const %s = (try rb_tree.insert(allocator, %s, {}, .no_clobber)).node;\n", tmp_node_name "_v2", m[2])
     printf("    defer allocator.destroy(%s);\n", tmp_node_name "_v2")
   } else {
-    printf("    const %s = (try rb_tree.insert(allocator, %s, void{}, .no_clobber)).node;\n", tmp_node_name, m[2])
+    printf("    const %s = (try rb_tree.insert(allocator, %s, {}, .no_clobber)).node;\n", tmp_node_name, m[2])
     printf("    defer allocator.destroy(%s);\n", tmp_node_name)
   }
   node_variables[tmp_node_name] = 1 
@@ -256,7 +256,7 @@ match($0, /^[[:space:]]*(rb_|)tree\.remove\(([0-9-]*)\)/, m) && (status == 1) {
   }
 
   printf("    // we remove a node without deallocating it\n")
-  printf("    _ = Tree.implementation.removeNode(&rb_tree.root, void{}, rb_tree.find(%s).?);\n", m[2])
+  printf("    _ = Tree.implementation.removeNode(&rb_tree.root, {}, rb_tree.find(%s).?);\n", m[2])
   next
 }
 
@@ -286,7 +286,7 @@ match($0, /^[[:space:]]*([A-Za-z0-9_]*)\s*=\s*([A-Za-z0-9_.]*)[[:space:]]*(#.*)?
 #       tree.root = root
 #
 match($0, /^[[:space:]]*(rb_|)tree\.root\s*=\s*root[[:space:]]*(#.*)?$/, m) && (status == 1) {
-  printf("    var rb_tree: Tree = .{ .root = root, .size = %i, .cache = void{} };\n", length(node_variables))
+  printf("    var rb_tree: Tree = .{ .root = root, .size = %i, .cache = {} };\n", length(node_variables))
 
   initialised_rbtree = 1
   next

@@ -42,31 +42,31 @@ test "find_node" {
     // and test the find function on each node
     var rb_tree = Tree.init();
 
-    const node_2 = (try rb_tree.insert(allocator, 2, void{}, .no_clobber)).node;
+    const node_2 = (try rb_tree.insert(allocator, 2, {}, .no_clobber)).node;
     defer allocator.destroy(node_2);
     const hopefully_node_2 = rb_tree.root.?;
-    const node_1 = (try rb_tree.insert(allocator, 1, void{}, .no_clobber)).node;
+    const node_1 = (try rb_tree.insert(allocator, 1, {}, .no_clobber)).node;
     defer allocator.destroy(node_1);
     const hopefully_node_1 = rb_tree.root.?.left.?;
-    const node_4 = (try rb_tree.insert(allocator, 4, void{}, .no_clobber)).node;
+    const node_4 = (try rb_tree.insert(allocator, 4, {}, .no_clobber)).node;
     defer allocator.destroy(node_4);
     const hopefully_node_4 = rb_tree.root.?.right.?;
-    const node_5 = (try rb_tree.insert(allocator, 5, void{}, .no_clobber)).node;
+    const node_5 = (try rb_tree.insert(allocator, 5, {}, .no_clobber)).node;
     defer allocator.destroy(node_5);
     const hopefully_node_5 = hopefully_node_4.right.?;
-    const node_9 = (try rb_tree.insert(allocator, 9, void{}, .no_clobber)).node;
+    const node_9 = (try rb_tree.insert(allocator, 9, {}, .no_clobber)).node;
     defer allocator.destroy(node_9);
     const hopefully_node_9 = hopefully_node_5.right.?;
-    const node_3 = (try rb_tree.insert(allocator, 3, void{}, .no_clobber)).node;
+    const node_3 = (try rb_tree.insert(allocator, 3, {}, .no_clobber)).node;
     defer allocator.destroy(node_3);
     const hopefully_node_3 = hopefully_node_4.left.?;
-    const node_6 = (try rb_tree.insert(allocator, 6, void{}, .no_clobber)).node;
+    const node_6 = (try rb_tree.insert(allocator, 6, {}, .no_clobber)).node;
     defer allocator.destroy(node_6);
     const hopefully_node_6 = hopefully_node_9.left.?;
-    const node_7 = (try rb_tree.insert(allocator, 7, void{}, .no_clobber)).node;
+    const node_7 = (try rb_tree.insert(allocator, 7, {}, .no_clobber)).node;
     defer allocator.destroy(node_7);
     const hopefully_node_7 = hopefully_node_5.right.?;
-    const node_15 = (try rb_tree.insert(allocator, 15, void{}, .no_clobber)).node;
+    const node_15 = (try rb_tree.insert(allocator, 15, {}, .no_clobber)).node;
     defer allocator.destroy(node_15);
     const hopefully_node_15 = hopefully_node_9.right.?;
 
@@ -166,8 +166,8 @@ test "recoloring_only" {
     root.left = node_m10;
     root.right = node_20;
 
-    var rb_tree: Tree = .{ .root = root, .size = 9, .cache = void{} };
-    const node_4 = (try rb_tree.insert(allocator, 4, void{}, .no_clobber)).node;
+    var rb_tree: Tree = .{ .root = root, .size = 9, .cache = {} };
+    const node_4 = (try rb_tree.insert(allocator, 4, {}, .no_clobber)).node;
     defer allocator.destroy(node_4);
 
     //
@@ -262,8 +262,8 @@ test "recoloring_two" {
 
     root.left = node_m10;
     root.right = node_20;
-    var rb_tree: Tree = .{ .root = root, .size = 9, .cache = void{} };
-    const node_19 = (try rb_tree.insert(allocator, 19, void{}, .no_clobber)).node;
+    var rb_tree: Tree = .{ .root = root, .size = 9, .cache = {} };
+    const node_19 = (try rb_tree.insert(allocator, 19, {}, .no_clobber)).node;
     defer allocator.destroy(node_19);
 
     //
@@ -351,8 +351,8 @@ test "right_rotation" {
     root.left = node_m10;
     root.right = node_20;
 
-    var rb_tree: Tree = .{ .root = root, .size = 5, .cache = void{} };
-    const node_13 = (try rb_tree.insert(allocator, 13, void{}, .no_clobber)).node;
+    var rb_tree: Tree = .{ .root = root, .size = 5, .cache = {} };
+    const node_13 = (try rb_tree.insert(allocator, 13, {}, .no_clobber)).node;
     defer allocator.destroy(node_13);
 
     //
@@ -418,8 +418,8 @@ test "left_rotation_no_sibling" {
     root.left = node_7;
     root.right = rightest;
 
-    var rb_tree: Tree = .{ .root = root, .size = 4, .cache = void{} };
-    const node_9 = (try rb_tree.insert(allocator, 9, void{}, .no_clobber)).node;
+    var rb_tree: Tree = .{ .root = root, .size = 4, .cache = {} };
+    const node_9 = (try rb_tree.insert(allocator, 9, {}, .no_clobber)).node;
     defer allocator.destroy(node_9);
 
     //
@@ -492,8 +492,8 @@ test "right_rotation_no_sibling_left_subtree" {
 
     root.left = node_m10;
     root.right = node_20;
-    var rb_tree: Tree = .{ .root = root, .size = 5, .cache = void{} };
-    const node_m12 = (try rb_tree.insert(allocator, -12, void{}, .no_clobber)).node;
+    var rb_tree: Tree = .{ .root = root, .size = 5, .cache = {} };
+    const node_m12 = (try rb_tree.insert(allocator, -12, {}, .no_clobber)).node;
     defer allocator.destroy(node_m12);
 
     //
@@ -574,8 +574,8 @@ test "left_right_rotation_no_sibling" {
     root.left = node_m10;
     root.right = node_20;
 
-    var rb_tree: Tree = .{ .root = root, .size = 5, .cache = void{} };
-    const node_17 = (try rb_tree.insert(allocator, 17, void{}, .no_clobber)).node;
+    var rb_tree: Tree = .{ .root = root, .size = 5, .cache = {} };
+    const node_17 = (try rb_tree.insert(allocator, 17, {}, .no_clobber)).node;
     defer allocator.destroy(node_17);
 
     //
@@ -660,8 +660,8 @@ test "right_left_rotation_no_sibling" {
     root.left = nodem10;
     root.right = node_20;
 
-    var rb_tree: Tree = .{ .root = root, .size = 5, .cache = void{} };
-    const node_2 = (try rb_tree.insert(allocator, 2, void{}, .no_clobber)).node;
+    var rb_tree: Tree = .{ .root = root, .size = 5, .cache = {} };
+    const node_2 = (try rb_tree.insert(allocator, 2, {}, .no_clobber)).node;
     defer allocator.destroy(node_2);
 
     //
@@ -766,8 +766,8 @@ test "recolor_lr" {
 
     root.left = node_m10;
     root.right = node_20;
-    var rb_tree: Tree = .{ .root = root, .size = 9, .cache = void{} };
-    const node_4 = (try rb_tree.insert(allocator, 4, void{}, .no_clobber)).node;
+    var rb_tree: Tree = .{ .root = root, .size = 9, .cache = {} };
+    const node_4 = (try rb_tree.insert(allocator, 4, {}, .no_clobber)).node;
     defer allocator.destroy(node_4);
 
     //
@@ -835,7 +835,7 @@ test "functional_test_build_tree" {
 
     var rb_tree = Tree.init();
 
-    const node_2 = (try rb_tree.insert(allocator, 2, void{}, .no_clobber)).node;
+    const node_2 = (try rb_tree.insert(allocator, 2, {}, .no_clobber)).node;
     defer allocator.destroy(node_2);
     try testing.expectEqual(rb_tree.root.?.key, 2);
     try testing.expect(rb_tree.root.?.getColor() == .black);
@@ -843,7 +843,7 @@ test "functional_test_build_tree" {
     // 2
     try checkTreeEqual(rb_tree, [_]i32{2});
 
-    const node_1 = (try rb_tree.insert(allocator, 1, void{}, .no_clobber)).node;
+    const node_1 = (try rb_tree.insert(allocator, 1, {}, .no_clobber)).node;
     defer allocator.destroy(node_1);
 
     //
@@ -856,7 +856,7 @@ test "functional_test_build_tree" {
     try testing.expectEqual(hopefully_node_1.key, 1);
     try testing.expect(hopefully_node_1.getColor() == .red);
 
-    const node_4 = (try rb_tree.insert(allocator, 4, void{}, .no_clobber)).node;
+    const node_4 = (try rb_tree.insert(allocator, 4, {}, .no_clobber)).node;
     defer allocator.destroy(node_4);
 
     //
@@ -871,7 +871,7 @@ test "functional_test_build_tree" {
     try testing.expectEqual(hopefully_node_4.left, null);
     try testing.expectEqual(hopefully_node_4.right, null);
 
-    const node_5 = (try rb_tree.insert(allocator, 5, void{}, .no_clobber)).node;
+    const node_5 = (try rb_tree.insert(allocator, 5, {}, .no_clobber)).node;
     defer allocator.destroy(node_5);
 
     //
@@ -887,7 +887,7 @@ test "functional_test_build_tree" {
     try testing.expect(hopefully_node_1.getColor() == .black);
     try testing.expect(hopefully_node_5.getColor() == .red);
 
-    const node_9 = (try rb_tree.insert(allocator, 9, void{}, .no_clobber)).node;
+    const node_9 = (try rb_tree.insert(allocator, 9, {}, .no_clobber)).node;
     defer allocator.destroy(node_9);
 
     //
@@ -914,7 +914,7 @@ test "functional_test_build_tree" {
     try testing.expectEqual(hopefully_node_5.left.?.key, 4);
     try testing.expectEqual(hopefully_node_5.right.?.key, 9);
 
-    const node_3 = (try rb_tree.insert(allocator, 3, void{}, .no_clobber)).node;
+    const node_3 = (try rb_tree.insert(allocator, 3, {}, .no_clobber)).node;
     defer allocator.destroy(node_3);
 
     //
@@ -943,7 +943,7 @@ test "functional_test_build_tree" {
     try testing.expectEqual(hopefully_node_5.left.?.key, 4);
     try testing.expectEqual(hopefully_node_5.right.?.key, 9);
 
-    const node_6 = (try rb_tree.insert(allocator, 6, void{}, .no_clobber)).node;
+    const node_6 = (try rb_tree.insert(allocator, 6, {}, .no_clobber)).node;
     defer allocator.destroy(node_6);
 
     //
@@ -962,7 +962,7 @@ test "functional_test_build_tree" {
     try testing.expectEqual(hopefully_node_6.left, null);
     try testing.expectEqual(hopefully_node_6.right, null);
 
-    const node_7 = (try rb_tree.insert(allocator, 7, void{}, .no_clobber)).node;
+    const node_7 = (try rb_tree.insert(allocator, 7, {}, .no_clobber)).node;
     defer allocator.destroy(node_7);
 
     //
@@ -999,7 +999,7 @@ test "functional_test_build_tree" {
     try testing.expectEqual(hopefully_node_9.right, null);
     try testing.expectEqual(hopefully_node_9.getParent().?.key, 7);
 
-    const node_15 = (try rb_tree.insert(allocator, 15, void{}, .no_clobber)).node;
+    const node_15 = (try rb_tree.insert(allocator, 15, {}, .no_clobber)).node;
     defer allocator.destroy(node_15);
 
     //
@@ -1105,8 +1105,8 @@ test "right_left_rotation_after_recolor" {
 
     root.left = node_5;
     root.right = node_20;
-    var rb_tree: Tree = .{ .root = root, .size = 8, .cache = void{} };
-    const node_19 = (try rb_tree.insert(allocator, 19, void{}, .no_clobber)).node;
+    var rb_tree: Tree = .{ .root = root, .size = 8, .cache = {} };
+    const node_19 = (try rb_tree.insert(allocator, 19, {}, .no_clobber)).node;
     defer allocator.destroy(node_19);
 
     //
@@ -1228,8 +1228,8 @@ test "right_rotation_after_recolor" {
 
     root.left = node_m10;
     root.right = node_20;
-    var rb_tree: Tree = .{ .root = root, .size = 10, .cache = void{} };
-    const node_m22 = (try rb_tree.insert(allocator, -22, void{}, .no_clobber)).node;
+    var rb_tree: Tree = .{ .root = root, .size = 10, .cache = {} };
+    const node_m22 = (try rb_tree.insert(allocator, -22, {}, .no_clobber)).node;
     defer allocator.destroy(node_m22);
 
     //
@@ -1318,9 +1318,9 @@ test "deletion_root" {
     //          /     \     --Result-->   /
     //        3R      8R                3R
     //
-    var rb_tree: Tree = .{ .root = root, .size = 3, .cache = void{} };
+    var rb_tree: Tree = .{ .root = root, .size = 3, .cache = {} };
     // we remove a node without deallocating it
-    _ = Tree.implementation.removeNode(&rb_tree.root, void{}, rb_tree.find(5).?);
+    _ = Tree.implementation.removeNode(&rb_tree.root, {}, rb_tree.find(5).?);
 
     try checkTreeEqual(rb_tree, [_]i32{ 3, 8 });
 
@@ -1357,9 +1357,9 @@ test "deletion_root_2_nodes" {
     right_child.* = Node.init(.{ .key = 8, .color = .red, .parent = root, .left = null, .right = null });
 
     root.right = right_child;
-    var rb_tree: Tree = .{ .root = root, .size = 2, .cache = void{} };
+    var rb_tree: Tree = .{ .root = root, .size = 2, .cache = {} };
     // we remove a node without deallocating it
-    _ = Tree.implementation.removeNode(&rb_tree.root, void{}, rb_tree.find(5).?);
+    _ = Tree.implementation.removeNode(&rb_tree.root, {}, rb_tree.find(5).?);
 
     //
     // __5B__ <-- REMOVE        __8B__
@@ -1401,9 +1401,9 @@ test "delete_single_child" {
 
     root.left = left_child;
     root.right = right_child;
-    var rb_tree: Tree = .{ .root = root, .size = 3, .cache = void{} };
+    var rb_tree: Tree = .{ .root = root, .size = 3, .cache = {} };
     // we remove a node without deallocating it
-    _ = Tree.implementation.removeNode(&rb_tree.root, void{}, rb_tree.find(6).?);
+    _ = Tree.implementation.removeNode(&rb_tree.root, {}, rb_tree.find(6).?);
 
     //
     //    5                        5B
@@ -1497,9 +1497,9 @@ test "delete_single_deep_child" {
 
     root.left = node_10;
     root.right = node_38;
-    var rb_tree: Tree = .{ .root = root, .size = 11, .cache = void{} };
+    var rb_tree: Tree = .{ .root = root, .size = 11, .cache = {} };
     // we remove a node without deallocating it
-    _ = Tree.implementation.removeNode(&rb_tree.root, void{}, rb_tree.find(49).?);
+    _ = Tree.implementation.removeNode(&rb_tree.root, {}, rb_tree.find(49).?);
 
     //
     //       ______20______
@@ -1580,9 +1580,9 @@ test "deletion_red_node_red_successor_no_children" {
 
     root.left = node_5;
     root.right = node_35;
-    var rb_tree: Tree = .{ .root = root, .size = 8, .cache = void{} };
+    var rb_tree: Tree = .{ .root = root, .size = 8, .cache = {} };
     // we remove a node without deallocating it
-    _ = Tree.implementation.removeNode(&rb_tree.root, void{}, rb_tree.find(35).?);
+    _ = Tree.implementation.removeNode(&rb_tree.root, {}, rb_tree.find(35).?);
 
     //
     //                10B
@@ -1681,9 +1681,9 @@ test "mirror_deletion_red_node_red_successor_no_children" {
 
     root.left = node_5;
     root.right = node_35;
-    var rb_tree: Tree = .{ .root = root, .size = 9, .cache = void{} };
+    var rb_tree: Tree = .{ .root = root, .size = 9, .cache = {} };
     // we remove a node without deallocating it
-    _ = Tree.implementation.removeNode(&rb_tree.root, void{}, rb_tree.find(5).?);
+    _ = Tree.implementation.removeNode(&rb_tree.root, {}, rb_tree.find(5).?);
 
     //
     //                 10B
@@ -1787,9 +1787,9 @@ test "deletion_black_node_black_successor_right_red_child" {
     root.left = node_5;
     root.right = node_30;
 
-    var rb_tree: Tree = .{ .root = root, .size = 10, .cache = void{} };
+    var rb_tree: Tree = .{ .root = root, .size = 10, .cache = {} };
     // we remove a node without deallocating it
-    _ = Tree.implementation.removeNode(&rb_tree.root, void{}, rb_tree.find(30).?);
+    _ = Tree.implementation.removeNode(&rb_tree.root, {}, rb_tree.find(30).?);
 
     //
     //       ___10B___                                             ___10B___
@@ -1860,9 +1860,9 @@ test "deletion_black_node_black_successor_no_child_case_4" {
 
     root.left = node_m10;
     root.right = node_30;
-    var rb_tree: Tree = .{ .root = root, .size = 5, .cache = void{} };
+    var rb_tree: Tree = .{ .root = root, .size = 5, .cache = {} };
     // we remove a node without deallocating it
-    _ = Tree.implementation.removeNode(&rb_tree.root, void{}, rb_tree.find(10).?);
+    _ = Tree.implementation.removeNode(&rb_tree.root, {}, rb_tree.find(10).?);
 
     //
     //          ___10B___   <----- REMOVE THIS       ___20B___
@@ -1939,9 +1939,9 @@ test "deletion_black_node_no_successor_case_6" {
 
     root.left = node_m10;
     root.right = node_30;
-    var rb_tree: Tree = .{ .root = root, .size = 5, .cache = void{} };
+    var rb_tree: Tree = .{ .root = root, .size = 5, .cache = {} };
     // we remove a node without deallocating it
-    _ = Tree.implementation.removeNode(&rb_tree.root, void{}, rb_tree.find(-10).?);
+    _ = Tree.implementation.removeNode(&rb_tree.root, {}, rb_tree.find(-10).?);
 
     //
     //                 ___10B___
@@ -2019,9 +2019,9 @@ test "mirror_deletion_black_node_no_successor_case_6" {
     node_5.right = node_7;
     root.left = node_5;
     root.right = node_12;
-    var rb_tree: Tree = .{ .root = root, .size = 5, .cache = void{} };
+    var rb_tree: Tree = .{ .root = root, .size = 5, .cache = {} };
     // we remove a node without deallocating it
-    _ = Tree.implementation.removeNode(&rb_tree.root, void{}, rb_tree.find(12).?);
+    _ = Tree.implementation.removeNode(&rb_tree.root, {}, rb_tree.find(12).?);
 
     //
     //      __10B__                                           __5B__
@@ -2091,9 +2091,9 @@ test "deletion_black_node_no_successor_case_3_then_1" {
 
     root.left = node_m10;
     root.right = node_30;
-    var rb_tree: Tree = .{ .root = root, .size = 3, .cache = void{} };
+    var rb_tree: Tree = .{ .root = root, .size = 3, .cache = {} };
     // we remove a node without deallocating it
-    _ = Tree.implementation.removeNode(&rb_tree.root, void{}, rb_tree.find(-10).?);
+    _ = Tree.implementation.removeNode(&rb_tree.root, {}, rb_tree.find(-10).?);
 
     //                                                     Double
     //                                                     Black
@@ -2188,9 +2188,9 @@ test "deletion_black_node_no_successor_case_3_then_5_then_6" {
 
     root.left = node_m30;
     root.right = node_50;
-    var rb_tree: Tree = .{ .root = root, .size = 9, .cache = void{} };
+    var rb_tree: Tree = .{ .root = root, .size = 9, .cache = {} };
     // we remove a node without deallocating it
-    _ = Tree.implementation.removeNode(&rb_tree.root, void{}, rb_tree.find(-40).?);
+    _ = Tree.implementation.removeNode(&rb_tree.root, {}, rb_tree.find(-40).?);
 
     //
     //       In mirror cases, this'd be mirrored
@@ -2349,9 +2349,9 @@ test "mirror_deletion_black_node_no_successor_case_3_then_5_then_6" {
 
     root.left = node_30;
     root.right = node_80;
-    var rb_tree: Tree = .{ .root = root, .size = 9, .cache = void{} };
+    var rb_tree: Tree = .{ .root = root, .size = 9, .cache = {} };
     // we remove a node without deallocating it
-    _ = Tree.implementation.removeNode(&rb_tree.root, void{}, rb_tree.find(90).?);
+    _ = Tree.implementation.removeNode(&rb_tree.root, {}, rb_tree.find(90).?);
 
     //
     //                         Parent is black
@@ -2501,9 +2501,9 @@ test "deletion_black_node_successor_case_2_then_4" {
 
     root.left = node_m10;
     root.right = node_40;
-    var rb_tree: Tree = .{ .root = root, .size = 9, .cache = void{} };
+    var rb_tree: Tree = .{ .root = root, .size = 9, .cache = {} };
     // we remove a node without deallocating it
-    _ = Tree.implementation.removeNode(&rb_tree.root, void{}, rb_tree.find(10).?);
+    _ = Tree.implementation.removeNode(&rb_tree.root, {}, rb_tree.find(10).?);
 
     //
     //
@@ -2639,9 +2639,9 @@ test "mirror_deletion_black_node_successor_case_2_then_4" {
 
     root.left = node_10;
     root.right = node_30;
-    var rb_tree: Tree = .{ .root = root, .size = 9, .cache = void{} };
+    var rb_tree: Tree = .{ .root = root, .size = 9, .cache = {} };
     // we remove a node without deallocating it
-    _ = Tree.implementation.removeNode(&rb_tree.root, void{}, rb_tree.find(15).?);
+    _ = Tree.implementation.removeNode(&rb_tree.root, {}, rb_tree.find(15).?);
 
     //
     //
@@ -2799,21 +2799,21 @@ test "delete_tree_one_by_one" {
     //               /  \        /   \
     //             23R  29R     41R   49R
     //
-    var rb_tree: Tree = .{ .root = root, .size = 11, .cache = void{} };
+    var rb_tree: Tree = .{ .root = root, .size = 11, .cache = {} };
     // we remove a node without deallocating it
-    _ = Tree.implementation.removeNode(&rb_tree.root, void{}, rb_tree.find(49).?);
+    _ = Tree.implementation.removeNode(&rb_tree.root, {}, rb_tree.find(49).?);
     // we remove a node without deallocating it
-    _ = Tree.implementation.removeNode(&rb_tree.root, void{}, rb_tree.find(38).?);
+    _ = Tree.implementation.removeNode(&rb_tree.root, {}, rb_tree.find(38).?);
     // we remove a node without deallocating it
-    _ = Tree.implementation.removeNode(&rb_tree.root, void{}, rb_tree.find(28).?);
+    _ = Tree.implementation.removeNode(&rb_tree.root, {}, rb_tree.find(28).?);
     // we remove a node without deallocating it
-    _ = Tree.implementation.removeNode(&rb_tree.root, void{}, rb_tree.find(10).?);
+    _ = Tree.implementation.removeNode(&rb_tree.root, {}, rb_tree.find(10).?);
     // we remove a node without deallocating it
-    _ = Tree.implementation.removeNode(&rb_tree.root, void{}, rb_tree.find(5).?);
+    _ = Tree.implementation.removeNode(&rb_tree.root, {}, rb_tree.find(5).?);
     // we remove a node without deallocating it
-    _ = Tree.implementation.removeNode(&rb_tree.root, void{}, rb_tree.find(15).?);
+    _ = Tree.implementation.removeNode(&rb_tree.root, {}, rb_tree.find(15).?);
     // we remove a node without deallocating it
-    _ = Tree.implementation.removeNode(&rb_tree.root, void{}, rb_tree.find(48).?);
+    _ = Tree.implementation.removeNode(&rb_tree.root, {}, rb_tree.find(48).?);
 
     //
     // We're left with
@@ -2846,7 +2846,7 @@ test "delete_tree_one_by_one" {
     try testing.expectEqual(hopefully_node_29.left, null);
     try testing.expectEqual(hopefully_node_29.right, null);
     // we remove a node without deallocating it
-    _ = Tree.implementation.removeNode(&rb_tree.root, void{}, rb_tree.find(20).?);
+    _ = Tree.implementation.removeNode(&rb_tree.root, {}, rb_tree.find(20).?);
 
     //
     //   _29B_
@@ -2870,7 +2870,7 @@ test "delete_tree_one_by_one" {
     try testing.expectEqual(hopefully_node_41.left, null);
     try testing.expectEqual(hopefully_node_41.right, null);
     // we remove a node without deallocating it
-    _ = Tree.implementation.removeNode(&rb_tree.root, void{}, rb_tree.find(29).?);
+    _ = Tree.implementation.removeNode(&rb_tree.root, {}, rb_tree.find(29).?);
 
     //
     //    41B
@@ -2889,7 +2889,7 @@ test "delete_tree_one_by_one" {
     try testing.expectEqual(hopefully_node_23.left, null);
     try testing.expectEqual(hopefully_node_23.right, null);
     // we remove a node without deallocating it
-    _ = Tree.implementation.removeNode(&rb_tree.root, void{}, rb_tree.find(41).?);
+    _ = Tree.implementation.removeNode(&rb_tree.root, {}, rb_tree.find(41).?);
 
     //
     // 23B
@@ -2901,7 +2901,7 @@ test "delete_tree_one_by_one" {
     try testing.expectEqual(hopefully_node_23.left, null);
     try testing.expectEqual(hopefully_node_23.right, null);
     // we remove a node without deallocating it
-    _ = Tree.implementation.removeNode(&rb_tree.root, void{}, rb_tree.find(23).?);
+    _ = Tree.implementation.removeNode(&rb_tree.root, {}, rb_tree.find(23).?);
     try testing.expectEqual(rb_tree.root, null);
 }
 test "add_delete_random_order" {
@@ -2917,41 +2917,41 @@ test "add_delete_random_order" {
 
     var rb_tree = Tree.init();
 
-    const node_90 = (try rb_tree.insert(allocator, 90, void{}, .no_clobber)).node;
+    const node_90 = (try rb_tree.insert(allocator, 90, {}, .no_clobber)).node;
     defer allocator.destroy(node_90);
-    const node_70 = (try rb_tree.insert(allocator, 70, void{}, .no_clobber)).node;
+    const node_70 = (try rb_tree.insert(allocator, 70, {}, .no_clobber)).node;
     defer allocator.destroy(node_70);
-    const node_43 = (try rb_tree.insert(allocator, 43, void{}, .no_clobber)).node;
+    const node_43 = (try rb_tree.insert(allocator, 43, {}, .no_clobber)).node;
     defer allocator.destroy(node_43);
     // we remove a node without deallocating it
-    _ = Tree.implementation.removeNode(&rb_tree.root, void{}, rb_tree.find(70).?);
-    const node_24 = (try rb_tree.insert(allocator, 24, void{}, .no_clobber)).node;
+    _ = Tree.implementation.removeNode(&rb_tree.root, {}, rb_tree.find(70).?);
+    const node_24 = (try rb_tree.insert(allocator, 24, {}, .no_clobber)).node;
     defer allocator.destroy(node_24);
-    const node_14 = (try rb_tree.insert(allocator, 14, void{}, .no_clobber)).node;
+    const node_14 = (try rb_tree.insert(allocator, 14, {}, .no_clobber)).node;
     defer allocator.destroy(node_14);
-    const node_93 = (try rb_tree.insert(allocator, 93, void{}, .no_clobber)).node;
+    const node_93 = (try rb_tree.insert(allocator, 93, {}, .no_clobber)).node;
     defer allocator.destroy(node_93);
-    const node_47 = (try rb_tree.insert(allocator, 47, void{}, .no_clobber)).node;
+    const node_47 = (try rb_tree.insert(allocator, 47, {}, .no_clobber)).node;
     defer allocator.destroy(node_47);
     // we remove a node without deallocating it
-    _ = Tree.implementation.removeNode(&rb_tree.root, void{}, rb_tree.find(47).?);
+    _ = Tree.implementation.removeNode(&rb_tree.root, {}, rb_tree.find(47).?);
     // we remove a node without deallocating it
-    _ = Tree.implementation.removeNode(&rb_tree.root, void{}, rb_tree.find(90).?);
-    const node_57 = (try rb_tree.insert(allocator, 57, void{}, .no_clobber)).node;
+    _ = Tree.implementation.removeNode(&rb_tree.root, {}, rb_tree.find(90).?);
+    const node_57 = (try rb_tree.insert(allocator, 57, {}, .no_clobber)).node;
     defer allocator.destroy(node_57);
-    const node_1 = (try rb_tree.insert(allocator, 1, void{}, .no_clobber)).node;
+    const node_1 = (try rb_tree.insert(allocator, 1, {}, .no_clobber)).node;
     defer allocator.destroy(node_1);
-    const node_60 = (try rb_tree.insert(allocator, 60, void{}, .no_clobber)).node;
+    const node_60 = (try rb_tree.insert(allocator, 60, {}, .no_clobber)).node;
     defer allocator.destroy(node_60);
-    const node_47_v2 = (try rb_tree.insert(allocator, 47, void{}, .no_clobber)).node;
+    const node_47_v2 = (try rb_tree.insert(allocator, 47, {}, .no_clobber)).node;
     defer allocator.destroy(node_47_v2);
     // we remove a node without deallocating it
-    _ = Tree.implementation.removeNode(&rb_tree.root, void{}, rb_tree.find(47).?);
+    _ = Tree.implementation.removeNode(&rb_tree.root, {}, rb_tree.find(47).?);
     // we remove a node without deallocating it
-    _ = Tree.implementation.removeNode(&rb_tree.root, void{}, rb_tree.find(1).?);
+    _ = Tree.implementation.removeNode(&rb_tree.root, {}, rb_tree.find(1).?);
     // we remove a node without deallocating it
-    _ = Tree.implementation.removeNode(&rb_tree.root, void{}, rb_tree.find(43).?);
-    const node_49 = (try rb_tree.insert(allocator, 49, void{}, .no_clobber)).node;
+    _ = Tree.implementation.removeNode(&rb_tree.root, {}, rb_tree.find(43).?);
+    const node_49 = (try rb_tree.insert(allocator, 49, {}, .no_clobber)).node;
     defer allocator.destroy(node_49);
 
     //

@@ -7,7 +7,7 @@
 //! See the [repo on GitHub](https://github.com/alexbishop/zig-rbtree) for
 //! the code.
 //!
-//! **Note:** This version of the library is written for Zig version 0.16.0.
+//! **Note:** This version of the library is written for Zig version 0.17.0.
 //!
 //! ### Quickstart
 //!
